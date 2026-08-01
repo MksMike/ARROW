@@ -39,34 +39,47 @@ Enquanto isso não acontecer, **nenhuma outra máquina enxerga este trabalho.**
 
 | Item | Bloqueado por |
 |---|---|
-| Gate 1 inteiro | `k` de `T_min = (c/kσ)²` nunca foi definido (CLAUDE.md §7, ADR 0003) |
-| Primeiro sensor | Tese mecânica não escrita (docs/CONTEXT.md) |
-| Primeiro sensor | Semântica de `confidence` no `SensorOut` não definida (ADR 0002) |
-| Qualquer conclusão de Gate 2 | Capital inicial e drawdown tolerado não definidos (CLAUDE.md §11) |
-| Substituição das estimativas de σ | `DataAudit` ainda não construído |
-| Calibração de normalização de sensor | `DataAudit` ainda não construído (ADR 0002) |
+| Primeiro sensor | Tese mecânica não escrita (CLAUDE.md §18 passo 3) |
+| Primeiro sensor | Semântica de `confidence` no `SensorOut` não definida (CLAUDE.md §5.2) |
+| Modelo de spread, `curated/`, `bars/` | `BrokerTickLogger` não existe — sem `broker/` não há modelo |
+| Qualquer conclusão de Gate 2 | Capital inicial e drawdown tolerado não definidos (CLAUDE.md §13) |
+| Substituição das estimativas de σ | auditoria Python sobre `raw/` não construída (CLAUDE.md §18 passo 5) |
+| Calibração de normalização de sensor | mesma auditoria |
+
+> **Desbloqueado pela revisão do `CLAUDE.md` de 2026-08-02:** o `k` de `T_min = (c/kσ)²` era a
+> pendência que travava o Gate 1 inteiro. A revisão **removeu a fórmula** do Gate 1, que agora
+> avalia T condicionado à sessão na faixa de 1 a 30 barras M1, sem derivá-lo do custo. A pendência
+> deixou de existir por eliminação do requisito, não por resposta. O ADR 0003 continua válido no
+> que decidiu — `c/(2R)` como métrica de edge exigido — mas sua última consequência listada está
+> obsoleta.
 
 ## Próximo passo
 
-1. `Scripts/ARROW/DataAudit.mq5` — rodando sobre **XAUUSDm e XAUUSDz**. Produz inventário de
-   tick, spec do símbolo, σ por bucket de hora, distribuição de spread por hora × faixa de
-   volatilidade, verificação de fuso (`TimeCurrent()` vs `TimeGMT()` em duas estações), tick
-   value efetivo em JPY. Saída em CSV + relatório em `reports/`.
+A ordem é a da §18 do `CLAUDE.md` revisado, não a anterior.
 
-   Exige o terminal aberto com gráfico para executar o Script — não é verificável só por linha
-   de comando. Sessão própria.
+1. **`.gitignore`** — feito e commitado antes de o download terminar (§18 passo 1).
+2. **`Scripts/ARROW/BrokerTickLogger.mq5`** — o item urgente. Cada dia não coletado é verdade de
+   campo perdida para sempre, e ele é o único insumo do modelo de spread. Puxar também o
+   histórico ainda retido via `CopyTicks` antes que role para fora da janela.
+3. **Tese** — duas ou três hipóteses mecânicas falsificáveis, escritas **antes** de olhar dado.
+4. `research/lib/` — Dukascopy CSV → Parquet particionado por mês.
 
-2. `Scripts/ARROW/TickImport.mq5` — a janela de tick real do broker cobre ~6-7 meses contra os
-   250 dias que o Gate 2 exige, então a importação é caminho crítico, não contingência.
+O task brief `camada-de-dados` (chat, 2026-08-02) cobre os itens 2 a 7 da §18 e ainda não foi
+executado — ver "Decisões pendentes" abaixo quanto à numeração do ADR que ele pede.
 
 ## Decisões pendentes de ADR
 
 | Assunto | Onde foi decidido | ADR |
 |---|---|---|
-| Valor e derivação do `k` do Gate 1 | não decidido em lugar nenhum | falta debate |
+| Camada de dados e paridade Python/MQL5 | task brief do chat, 2026-08-02 | **a escrever — ver nota** |
 | Semântica de `confidence` | não decidido em lugar nenhum | falta debate |
 | Tese mecânica do XAUUSD M1 | não decidido em lugar nenhum | falta debate |
 | Capital inicial, drawdown, critério demo→real | não decidido em lugar nenhum | falta debate |
+
+> **Colisão de numeração:** o task brief pede `docs/decisions/0001-camada-de-dados.md`, mas
+> `0001` já é o ADR de namespace, escrito no bootstrap antes de o brief existir. O chat não tinha
+> como saber. O próximo número livre é **0005**. Numeração de ADR nunca é reaproveitada
+> (`docs/decisions/README.md`).
 
 > As três pendências que este arquivo listava antes do bootstrap — contrato do sensor, custo como
 > exigência de edge, repositório público — foram quitadas pelos ADRs 0002, 0003 e 0004.

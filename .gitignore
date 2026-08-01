@@ -1,43 +1,59 @@
 # ============================================================================
 # ARROW — .gitignore
 #
-# O repositório é público. Regra decorrente (CLAUDE.md §10): o código é
-# público, os dados não. Nada que esteja abaixo entra no repositório sob
-# nenhuma circunstância.
+# Versão normativa. O bloco da §12.1 do CLAUDE.md é o MÍNIMO que este arquivo
+# deve conter.
+#
+# O repositório é público e o histórico de ticks tem vários GB. Um arquivo
+# acima de 100 MB é rejeitado pelo GitHub no push, mas o commit local já
+# existe nesse ponto — e remover depois não encolhe o repositório, porque o
+# histórico retém o blob para sempre.
+#
+# Por isso a proteção é em camadas. Este arquivo é só a primeira: ver as
+# regras operacionais da §12.1 (nunca `git add -A`, verificação de 5 MB antes
+# de todo commit).
 # ============================================================================
 
-# --- Binários compilados do MetaTrader ---------------------------------------
-*.ex5
-*.ex4
-
 # --- Dados: nunca versionados ------------------------------------------------
-# Ticks da Dukascopy (a redistribuição pode violar os termos da fonte, e o
-# volume inviabiliza o Git de qualquer forma) e qualquer dataset derivado.
 data/
-MQL5/Files/
 
-# Caches e áreas de staging de ferramentas de download de tick.
-# Criados na raiz por ferramenta externa — não fazem parte da árvore da §4.1.
-.dukascopy-cache/
+# Diretório PADRÃO do dukascopy-node. Se o `-dir` for omitido, o download cai
+# aqui — dentro do repositório e fora de data/.
 download/
 
-# --- Caminhos de máquina -----------------------------------------------------
-# O GUID do terminal muda por instalação. Nenhum caminho absoluto de máquina
-# entra em arquivo versionado (§10).
+# Cache do `-ch` do dukascopy-node, criado na RAIZ do diretório de trabalho e
+# composto de .json. Nenhuma outra regra desta lista o alcança.
+.dukascopy-cache/
+
+*.csv
+*.parquet
+*.bi5
+*.zip
+
+# ...mas reports/ é versionado e aceita CSV pequeno (§12.1, regra 4).
+# A regra `*.csv` acima o mataria.
+!reports/**/*.csv
+
+# --- Binários e artefatos MQL5 -----------------------------------------------
+*.ex5
+*.ex4
+MQL5/Files/
+**/tester/
+
+# --- Local, por máquina ------------------------------------------------------
+# O GUID do terminal e a identidade da máquina mudam por instalação. Nenhum
+# caminho absoluto de máquina entra em arquivo versionado (§12).
 tools/setup/local_paths.*
 # ...mas o modelo precisa ser versionado, senão uma máquina nova não tem de
 # onde partir. A regra acima o engoliria.
 !tools/setup/local_paths.example.*
 
-# --- Saídas do Strategy Tester e logs ----------------------------------------
-**/tester/
+.env
 *.log
 
-# --- Credenciais -------------------------------------------------------------
-.env
-
-# --- Ambiente Python (tools/analysis) ----------------------------------------
+# --- Python ------------------------------------------------------------------
 __pycache__/
 *.py[cod]
+.ipynb_checkpoints/
 .venv/
 venv/

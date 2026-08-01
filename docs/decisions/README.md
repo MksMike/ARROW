@@ -19,10 +19,13 @@ de implementação.
 
 | Assunto | Bloqueia | Onde está registrado |
 |---|---|---|
-| Valor e derivação do `k` em `T_min = (c/kσ)²` | Gate 1 inteiro | `CLAUDE.md` §7, ADR 0003 |
-| Semântica de `confidence` no `SensorOut` | Primeiro sensor | ADR 0002 |
-| Tese mecânica — o que se acredita explorável no XAUUSD M1 | Primeiro sensor | `docs/CONTEXT.md` |
-| Capital inicial, drawdown tolerado, critério demo→real | Conclusão de Gate 2 | `CLAUDE.md` §11 |
+| Camada de dados e paridade Python↔MQL5 | Todo o pipeline de pesquisa | task brief do chat, 2026-08-02 → **ADR 0005** |
+| Semântica de `confidence` no `SensorOut` | Primeiro sensor | ADR 0002, `CLAUDE.md` §5.2 |
+| Tese mecânica — o que se acredita explorável no XAUUSD M1 | Primeiro sensor | `CLAUDE.md` §18 passo 3 |
+| Capital inicial, drawdown tolerado, critério demo→real | Conclusão de Gate 2 | `CLAUDE.md` §13 |
+
+O `k` de `T_min = (c/kσ)²` saiu desta lista: a revisão do `CLAUDE.md` de 2026-08-02 removeu a
+fórmula do Gate 1. A pendência acabou por eliminação do requisito, não por resposta.
 
 ## Convenção
 
