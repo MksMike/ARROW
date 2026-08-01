@@ -1,0 +1,14 @@
+# Ambiente de pesquisa do ARROW.
+#
+#   python -m venv .venv
+#   .venv\Scripts\python.exe -m pip install -r research/requirements.txt
+#
+# `.venv/` está no .gitignore. Versões fixadas porque um resultado
+# questionado seis meses depois precisa ser reconstituível (CLAUDE.md §10.2),
+# e "roda com o pandas que estiver instalado" não é reconstituível.
+#
+# Verificado em PC-Home com Python 3.14.6.
+
+pandas==3.0.5
+pyarrow==25.0.0
+matplotlib==3.11.1

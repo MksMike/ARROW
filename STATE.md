@@ -12,7 +12,7 @@
 |---|---|
 | Status | `FECHADA` |
 | Máquina | PC-Home |
-| Branch | `session/2026-08-02-bootstrap` — **WIP, não mergeada, não pushada** |
+| Branch | `main` — sessão mergeada e pushada |
 | Aberta em | 2026-08-02 |
 | Última atualização | 2026-08-02 |
 
@@ -24,21 +24,33 @@
 
 ## Em andamento
 
-Nada em execução. O bootstrap está completo na branch `session/2026-08-02-bootstrap`.
+Nada em execução no repositório. Duas coisas rodando **fora** dele:
 
-**A branch é WIP e não foi pushada.** Dois motivos, ambos aguardando o usuário:
+1. **Download da Dukascopy** — ver seção própria abaixo.
+2. **Nada mais.** Em particular, o `BrokerTickLogger` **não está coletando** — ver "Ação que
+   depende do usuário".
 
-1. O `CLAUDE.md` foi reescrito a partir do conteúdo de uma conversa, não copiado de um original.
-   Ele é a fonte de autoridade do projeto e o repositório é público — precisa de revisão antes
-   do push.
-2. Merge em `main` depende dessa mesma revisão.
+## Ação que depende do usuário — urgente
 
-Enquanto isso não acontecer, **nenhuma outra máquina enxerga este trabalho.**
+**`BrokerTickLogger.mq5` compila limpo mas não está rodando.** Um Script MQL5 precisa ser
+anexado a um gráfico por um humano; não há como iniciá-lo por linha de comando.
+
+Para colocar em produção, no MT5 de PC-Home:
+
+1. Abrir um gráfico de **`XAUUSDm`** (qualquer timeframe — o script lê tick, não barra)
+2. Navegador → Scripts → ARROW → arrastar `BrokerTickLogger` para o gráfico
+3. Deixar `InpBackfill = false` na primeira execução; ligar depois, se quiser puxar o histórico
+   ainda retido, sabendo que ele atravessa fronteira de DST em potencial
+4. **Não remover do gráfico.** Confirmar que `data/broker/xauusdm-AAAAMMDD.csv` aparece e cresce
+
+Enquanto isso não acontecer, `spread/`, `curated/` e `bars/` seguem impossíveis, e **cada dia é
+perdido para sempre** — a janela de retenção do broker rola.
 
 ## Bloqueado
 
 | Item | Bloqueado por |
 |---|---|
+| Gate 1 | Escolha de T dentro da faixa de 1 a 30 barras não tem critério — ver nota abaixo |
 | Primeiro sensor | Tese mecânica não escrita (CLAUDE.md §18 passo 3) |
 | Primeiro sensor | Semântica de `confidence` no `SensorOut` não definida (CLAUDE.md §5.2) |
 | Modelo de spread, `curated/`, `bars/` | `BrokerTickLogger` não existe — sem `broker/` não há modelo |
@@ -46,40 +58,89 @@ Enquanto isso não acontecer, **nenhuma outra máquina enxerga este trabalho.**
 | Substituição das estimativas de σ | auditoria Python sobre `raw/` não construída (CLAUDE.md §18 passo 5) |
 | Calibração de normalização de sensor | mesma auditoria |
 
-> **Desbloqueado pela revisão do `CLAUDE.md` de 2026-08-02:** o `k` de `T_min = (c/kσ)²` era a
-> pendência que travava o Gate 1 inteiro. A revisão **removeu a fórmula** do Gate 1, que agora
-> avalia T condicionado à sessão na faixa de 1 a 30 barras M1, sem derivá-lo do custo. A pendência
-> deixou de existir por eliminação do requisito, não por resposta. O ADR 0003 continua válido no
-> que decidiu — `c/(2R)` como métrica de edge exigido — mas sua última consequência listada está
-> obsoleta.
+> **O horizonte T do Gate 1 continua em aberto.** A revisão do `CLAUDE.md` de 2026-08-02 removeu
+> a derivação `T_min = (c/kσ)²`, mas **apagar a fórmula não respondeu a pergunta que ela fazia**:
+> em que horizonte o IC deve ser medido, dado que o custo é pago na entrada. O que sobrou —
+> "1 a 30 barras M1, condicionado à sessão" — é uma faixa de busca, não um critério de escolha.
+> Varrer os 30 valores e ficar com o melhor é teste múltiplo disfarçado de metodologia, e a §7
+> trata exatamente isso como reprovação.
+>
+> Isto é decisão pendente, **não requisito eliminado**. Volta do chat como ADR. Enquanto não
+> voltar, nenhum Gate 1 é executado.
+>
+> O ADR 0003 segue válido no que decidiu — `c/(2R)` como métrica de edge exigido. Apenas a última
+> consequência que ele lista, que apontava para a fórmula, perdeu o referente no `CLAUDE.md`.
 
 ## Próximo passo
 
-A ordem é a da §18 do `CLAUDE.md` revisado, não a anterior.
+Enquanto a tese e a semântica de `confidence` não voltarem do chat, o trabalho segue pelo ADR
+0005 e para antes de qualquer sensor.
 
-1. **`.gitignore`** — feito e commitado antes de o download terminar (§18 passo 1).
-2. **`Scripts/ARROW/BrokerTickLogger.mq5`** — o item urgente. Cada dia não coletado é verdade de
-   campo perdida para sempre, e ele é o único insumo do modelo de spread. Puxar também o
-   histórico ainda retido via `CopyTicks` antes que role para fora da janela.
-3. **Tese** — duas ou três hipóteses mecânicas falsificáveis, escritas **antes** de olhar dado.
-4. `research/lib/` — Dukascopy CSV → Parquet particionado por mês.
+1. **Colocar o `BrokerTickLogger` em produção** — ver acima. É do usuário, não meu.
+2. **Auditoria em Python sobre `raw/`** (§18 passo 5) — agora possível, `raw/` existe para
+   2025-08..2026-08: **σ por minuto por bucket de hora**, que substitui as estimativas
+   preliminares das §13.1/13.2, mais densidade de tick por sessão.
+3. **Converter os demais anos** conforme cada CSV fechar:
+   `.venv\Scripts\python.exe research\build_raw.py --csv data\dukascopy\<arquivo>.csv`
+   Conferir antes que o arquivo está estável — rodar sobre CSV em escrita trunca a última linha.
+   **Nunca reprocessar um CSV já convertido sem `--validate-only`:** `write_raw` é append-only e
+   duplicaria `raw/`.
+4. `DataAudit.mq5`, depois `spread_model.py`, `curate.py`, `bars.py`, `parity.py` +
+   `ParityDump.mq5` (ADR 0005, ordem da §7 do brief).
 
-O task brief `camada-de-dados` (chat, 2026-08-02) cobre os itens 2 a 7 da §18 e ainda não foi
-executado — ver "Decisões pendentes" abaixo quanto à numeração do ADR que ele pede.
+**Nenhum sensor. Nenhuma feature derivada além das nove primitivas de `bars/`.**
+
+## Estado dos dados
+
+### `data/raw/` — existe, um ano
+
+| | |
+|---|---|
+| Cobertura | `2025-08-01 00:00:00 UTC` → `2026-07-31 20:59:02.882 UTC` |
+| Ticks | 91.480.835 |
+| Tamanho | 522 MB em Parquet zstd, 12 partições mensais |
+| Defeito estrutural | nenhum — 0 retrocesso de `ts`, 0 `ask < bid`, 0 preço ≤ 0, 0 duplicata |
+| Cobertura | 1 dia útil sem tick: `2026-04-03`, Sexta-feira Santa |
+| Relatório | `reports/xauusd-2025-08_2026-08-validacao.md` |
+
+O último tick cai exatamente na borda do intervalo diário do símbolo (20:58). É evidência
+independente a favor da hipótese de servidor UTC+0 da §10.7 — **de uma estação só**, portanto não
+substitui o teste das duas.
+
+### `data/broker/` — vazio
+
+Nada coletado. Ver "Ação que depende do usuário".
+
+### Download da Dukascopy
+
+Corrida única em andamento, 2022-08 a 2026-08 em segmentos anuais, ordem
+**2025 → 2024 → 2023 → 2022**, parâmetros `-bs 10 -bp 500` (§10.1).
+
+- `2025-08 → 2026-08`: **completo e já convertido para `raw/`**
+- `2024-08 → 2025-08`: baixando
+- `2023`, `2022`: na fila
+
+O CSV `xauusd-tick-2022-08-01-2023-08-01.csv` (173 MB) é **resto da corrida anterior, morta**.
+Está truncado. Não converter — será refeito pela corrida atual.
 
 ## Decisões pendentes de ADR
 
 | Assunto | Onde foi decidido | ADR |
 |---|---|---|
-| Camada de dados e paridade Python/MQL5 | task brief do chat, 2026-08-02 | **a escrever — ver nota** |
+| Camada de dados e paridade Python/MQL5 | task brief do chat, 2026-08-02 | **0005 — escrito** |
+| Escolha de T dentro da faixa do Gate 1 | não decidido em lugar nenhum | falta debate |
 | Semântica de `confidence` | não decidido em lugar nenhum | falta debate |
 | Tese mecânica do XAUUSD M1 | não decidido em lugar nenhum | falta debate |
 | Capital inicial, drawdown, critério demo→real | não decidido em lugar nenhum | falta debate |
 
-> **Colisão de numeração:** o task brief pede `docs/decisions/0001-camada-de-dados.md`, mas
-> `0001` já é o ADR de namespace, escrito no bootstrap antes de o brief existir. O chat não tinha
-> como saber. O próximo número livre é **0005**. Numeração de ADR nunca é reaproveitada
-> (`docs/decisions/README.md`).
+> **`confidence` não deve ser usado por nada até o chat decidir o que ele significa.** O campo
+> existe no `SensorOut` e permanece no contrato, mas nenhum código deve escrever nele, ler dele ou
+> ramificar sobre ele. O primeiro uso vira definição por acidente, e definição por acidente é o
+> que este arquivo existe para impedir.
+
+> **Colisão de numeração, resolvida:** o task brief pedia `0001-camada-de-dados.md`, mas `0001`
+> já era o ADR de namespace, escrito no bootstrap antes de o brief existir. Foi para **0005**.
+> Numeração de ADR nunca é reaproveitada (`docs/decisions/README.md`).
 
 > As três pendências que este arquivo listava antes do bootstrap — contrato do sensor, custo como
 > exigência de edge, repositório público — foram quitadas pelos ADRs 0002, 0003 e 0004.
@@ -90,4 +151,5 @@ executado — ver "Decisões pendentes" abaixo quanto à numeração do ADR que 
 
 | Data | Máquina | Relatório |
 |---|---|---|
+| 2026-08-02 | PC-Home | [camada de dados](docs/sessions/2026-08-02-0730-camada-de-dados.md) |
 | 2026-08-02 | PC-Home | [bootstrap](docs/sessions/2026-08-02-0700-bootstrap.md) |

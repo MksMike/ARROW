@@ -52,11 +52,18 @@ Write-Host "MQL5 root  : $Mql5Root"
 Write-Host ''
 
 # nome da junction dentro do terminal  ->  destino dentro do repositório
+#
+# A quinta entrada não é código: é a ponte de ESCRITA. O MQL5 é confinado ao
+# sandbox `<terminal>\MQL5\Files\` e não consegue gravar em C:\dev\ARROW\data
+# por caminho absoluto. Com a junction, um FileOpen("ARROW\broker\x.csv")
+# aterrissa em C:\dev\ARROW\data\broker\x.csv. Sem ela, o BrokerTickLogger
+# grava dentro da pasta do terminal e o dado fica fora do projeto.
 $Links = [ordered]@{
     'Include\ARROW'    = 'MQL5\Include\ARROW'
     'Indicators\ARROW' = 'MQL5\Indicators\ARROW'
     'Experts\ARROW'    = 'MQL5\Experts\ARROW'
     'Scripts\ARROW'    = 'MQL5\Scripts\ARROW'
+    'Files\ARROW'      = 'data'
 }
 
 $failed = 0
