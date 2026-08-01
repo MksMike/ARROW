@@ -10,9 +10,9 @@
 
 | Campo | Valor |
 |---|---|
-| Status | `ABERTA` |
+| Status | `FECHADA` |
 | Máquina | PC-Home |
-| Branch | `session/2026-08-02-bootstrap` |
+| Branch | `session/2026-08-02-bootstrap` — **WIP, não mergeada, não pushada** |
 | Aberta em | 2026-08-02 |
 | Última atualização | 2026-08-02 |
 
@@ -24,8 +24,16 @@
 
 ## Em andamento
 
-Bootstrap do repositório: árvore de diretórios, `.gitignore`, documentos normativos, ADRs
-0001–0004 e junctions. Sessão de escopo fechado — não produz nenhum `.mq5`.
+Nada em execução. O bootstrap está completo na branch `session/2026-08-02-bootstrap`.
+
+**A branch é WIP e não foi pushada.** Dois motivos, ambos aguardando o usuário:
+
+1. O `CLAUDE.md` foi reescrito a partir do conteúdo de uma conversa, não copiado de um original.
+   Ele é a fonte de autoridade do projeto e o repositório é público — precisa de revisão antes
+   do push.
+2. Merge em `main` depende dessa mesma revisão.
+
+Enquanto isso não acontecer, **nenhuma outra máquina enxerga este trabalho.**
 
 ## Bloqueado
 
@@ -69,4 +77,4 @@ Bootstrap do repositório: árvore de diretórios, `.gitignore`, documentos norm
 
 | Data | Máquina | Relatório |
 |---|---|---|
-| — | — | — |
+| 2026-08-02 | PC-Home | [bootstrap](docs/sessions/2026-08-02-0700-bootstrap.md) |
