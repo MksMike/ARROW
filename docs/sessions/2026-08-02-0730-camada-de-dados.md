@@ -4,7 +4,7 @@
 |---|---|
 | Máquina | PC-Home |
 | Branch | `session/2026-08-02-camada-de-dados` |
-| Commits | `46580e0..<encerramento>` |
+| Commits | `46580e0..802b17b` |
 | Duração | ~50 min |
 
 ## Objetivo declarado
