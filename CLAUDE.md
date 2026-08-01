@@ -276,6 +276,13 @@ Falha aqui = sensor morto imediatamente.
 
 - Coeficiente de informação (Spearman) entre `value` e o retorno futuro no horizonte T
 - **T avaliado condicionado à sessão**, nunca como valor único global. Faixa: 1 a 30 barras M1
+
+> **Como T é escolhido dentro da faixa continua em aberto.** "1 a 30 barras" delimita onde
+> procurar; não diz qual T usar nem por quê. A revisão de 2026-08-02 removeu a derivação
+> `T_min = (c/kσ)²` sem substituí-la, e a pergunta que ela fazia — em que horizonte o IC deve ser
+> medido, dado que o custo é pago na entrada — segue sem resposta. Varrer os 30 valores e ficar
+> com o melhor é teste múltiplo disfarçado de metodologia. Pendência registrada em `STATE.md`;
+> volta do chat como ADR.
 - Monotonicidade por decil, não apenas nas caudas
 - Significância por **block bootstrap com blocos de um dia**, ≥ 1000 reamostragens
 - **Aprovação:** limite inferior do IC no intervalo de 95% afastado de zero, no sinal esperado
@@ -408,10 +415,15 @@ Aquisição, para reprodutibilidade:
 
 ```
 npx dukascopy-node -i xauusd -from AAAA-08-01 -to AAAA-08-01 -t tick -f csv \
-  -v -ch -bs 1 -bp 2000 -dir "C:\dev\ARROW\data\dukascopy"
+  -v -ch -bs 10 -bp 500 -dir "C:\dev\ARROW\data\dukascopy"
 ```
 
-Um ano por execução. `-ch` é obrigatório: sem cache, falha no meio recomeça do zero.
+Um ano por segmento, os quatro segmentos encadeados numa corrida só, **do ano mais recente para
+o mais antigo**: 2025 → 2024 → 2023 → 2022. A ordem não é estética — ela libera `loader.py` e a
+auditoria sobre o ano mais representativo enquanto o resto ainda baixa, em vez de deixar todo o
+pipeline esperando o download inteiro.
+
+`-ch` é obrigatório: sem cache, falha no meio recomeça do zero.
 
 ### 10.2 Camadas de dado
 
@@ -494,8 +506,26 @@ Sessões do símbolo: domingo 22:00–24:00 (negociação a partir de 22:05); se
 
 O intervalo diário (20:58–22:00) corresponde à manutenção do COMEX (17:00–18:00 NY =
 21:00–22:00 UTC no verão), o que indica **servidor UTC+0** e alinharia a Dukascopy diretamente.
-Verificar por `TimeCurrent()` vs `TimeGMT()` em duas estações. As janelas deslizam uma hora no
-inverno americano — a armadilha de DST permanece, apenas muda de lugar.
+As janelas deslizam uma hora no inverno americano — a armadilha de DST permanece, apenas muda de
+lugar.
+
+**Como verificar, e como não verificar.** `TimeCurrent()` vs `TimeGMT()` mede o offset **no
+instante da chamada**. Chamar as duas funções não diz nada sobre DST: entrega uma estação só, a
+de hoje, e um servidor que desloca uma hora em março produz exatamente a mesma leitura de um
+servidor que nunca desloca. O critério é satisfeito por uma medição que não responde à pergunta.
+
+O teste correto ancora o horário do servidor a um evento cujo instante em UTC é conhecido de
+forma independente, **duas vezes: uma em janeiro e uma em julho**:
+
+- Localizar no histórico de barras M1 a borda do intervalo diário (início e fim da lacuna de
+  20:58–22:00) numa semana de janeiro e numa semana de julho
+- Converter cada borda para UTC pela hipótese de servidor UTC+0 e comparar com o instante UTC
+  real da manutenção do COMEX naquela data, que se desloca com o DST americano
+- **Se o offset medido for igual nas duas estações**, o servidor não observa DST e a hipótese
+  UTC+0 se sustenta. **Se diferir em uma hora**, o servidor segue algum DST e todo alinhamento
+  com a Dukascopy precisa de conversão por data, não por constante
+
+O resultado é um número em cada estação, registrado no relatório. "Parece UTC" não é resultado.
 
 Todo timestamp interno em UTC; conversão apenas na borda.
 
@@ -835,8 +865,9 @@ contexto.
 
 ## 18. Estado atual
 
-Nenhum sensor validado. Nenhuma medição real. **Em curso:** download de 4 anos de ticks
-Dukascopy (2022-08 a 2026-08) para `data/dukascopy/`.
+Nenhum sensor validado. Nenhuma medição real. **Em curso:** uma corrida única de download
+cobrindo 4 anos de ticks Dukascopy (2022-08 a 2026-08) para `data/dukascopy/`, encadeando os
+segmentos anuais de 2025 para 2022 (§10.1).
 
 **Próximos passos na ordem:**
 
@@ -859,7 +890,9 @@ Dukascopy (2022-08 a 2026-08) para `data/dukascopy/`.
 6. **`Scripts/ARROW/DataAudit.mq5`** — o equivalente do lado do broker:
    - `SYMBOL_DIGITS`, `SYMBOL_TRADE_TICK_VALUE`, `SYMBOL_TRADE_CONTRACT_SIZE`, `SYMBOL_POINT`
    - Distribuição de spread real por hora × faixa de volatilidade — média **e caudas**
-   - Verificação de fuso: `TimeCurrent()` vs `TimeGMT()` em duas estações
+   - Verificação de fuso pelo método da §10.7 — borda do intervalo diário ancorada à manutenção
+     do COMEX, medida em janeiro **e** em julho. Não por `TimeCurrent()` vs `TimeGMT()`, que
+     mede uma estação só
    - Tick value efetivo em JPY
 7. Construção de `spread/` e `curated/` — modelo de spread com semente registrada, máscara de
    sessão aplicada
