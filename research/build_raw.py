@@ -42,6 +42,15 @@ def main() -> int:
         help="Processar só as N primeiras linhas. Para verificar o pipeline, não para produzir raw/.",
     )
     ap.add_argument("--slug", default=None, help="Nome do relatório em reports/")
+    ap.add_argument(
+        "--validate-only",
+        action="store_true",
+        help=(
+            "Revalidar raw/ sem converter nada. Obrigatório ao reprocessar: "
+            "write_raw é append-only, então rodar a conversão duas vezes sobre "
+            "o mesmo CSV DUPLICA o dado em raw/ em vez de sobrescrever."
+        ),
+    )
     args = ap.parse_args()
 
     logging.basicConfig(
@@ -54,7 +63,9 @@ def main() -> int:
     reports = Path(args.reports_dir)
     slug = args.slug or csv_path.stem
 
-    if args.limit_rows:
+    if args.validate_only:
+        log.info("validate-only: nada será convertido")
+    elif args.limit_rows:
         log.warning(
             "MODO LIMITADO: %d linhas. O resultado NÃO é raw/ de produção.",
             args.limit_rows,

@@ -56,12 +56,23 @@ class ValidationReport:
 
     @property
     def clean(self) -> bool:
-        """Nenhum defeito estrutural. Dias finos NÃO desqualificam sozinhos."""
+        """Nenhum defeito **estrutural**.
+
+        Defeito estrutural é o que não pode existir num feed correto: tick
+        andando para trás no tempo, spread negativo, preço não positivo.
+
+        Dia útil ausente e dia fino **não** entram aqui, e a distinção não é
+        frouxidão. O ouro fecha em feriado de mercado — Sexta-feira Santa,
+        Natal, Ano-Novo — e nesses dias a ausência de tick é o dado correto.
+        Tratar isso como defeito faz o validador gritar em todo dataset
+        íntegro, e um alarme que sempre dispara deixa de ser lido. Os dois
+        ficam no relatório como observação de cobertura, para julgamento
+        humano antes de o período entrar num bloco de teste.
+        """
         return (
             self.ts_backwards == 0
             and self.ask_below_bid == 0
             and self.non_positive_price == 0
-            and not self.days_missing
         )
 
 
@@ -267,11 +278,13 @@ def report_markdown(rep: ValidationReport, png_rel: str | None = None) -> str:
 
     if rep.days_missing:
         lines += [
-            f"## Dias úteis sem nenhum tick — {len(rep.days_missing)}",
+            f"## Cobertura — {len(rep.days_missing)} dia(s) útil(eis) sem nenhum tick",
             "",
-            "Cada um destes é um buraco. Um buraco dentro de um bloco in-sample contamina",
-            "o resultado em silêncio; a decisão de excluir o período ou o bloco é de quem",
-            "monta o teste, mas precisa ser tomada sabendo que o buraco existe.",
+            "**Não é veredicto, é pergunta.** Um destes é feriado de mercado, e nesse caso a",
+            "ausência é o dado correto: o ouro não negocia na Sexta-feira Santa, no Natal nem",
+            "no Ano-Novo. Outro é buraco de coleta, e aí contamina em silêncio qualquer bloco",
+            "in-sample que o contenha. Os dois se parecem aqui; separá-los é decisão de quem",
+            "monta o teste, e precisa ser tomada olhando a lista, não ignorando-a.",
             "",
             "```",
             *rep.days_missing[:60],
@@ -280,7 +293,7 @@ def report_markdown(rep: ValidationReport, png_rel: str | None = None) -> str:
             "",
         ]
     else:
-        lines += ["## Dias úteis sem nenhum tick", "", "Nenhum.", ""]
+        lines += ["## Cobertura", "", "Nenhum dia útil sem tick.", ""]
 
     if rep.thin_days:
         lines += [
