@@ -1,0 +1,16 @@
+# O projeto é trabalhado em quatro máquinas. Sem normalização, a primeira coisa
+# que cada uma faz é reescrever o final de linha do repositório inteiro e
+# produzir um diff que não é uma mudança.
+
+* text=auto eol=lf
+
+# MQL5 e PowerShell são ferramentas Windows: CRLF no disco.
+*.mq5  text eol=crlf
+*.mqh  text eol=crlf
+*.ps1  text eol=crlf
+
+# Saídas de teste e dados: nunca normalizar.
+*.csv  text eol=lf
+*.tkc  binary
+*.ex5  binary
+*.ex4  binary

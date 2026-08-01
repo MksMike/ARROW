@@ -1,0 +1,43 @@
+# ============================================================================
+# ARROW — .gitignore
+#
+# O repositório é público. Regra decorrente (CLAUDE.md §10): o código é
+# público, os dados não. Nada que esteja abaixo entra no repositório sob
+# nenhuma circunstância.
+# ============================================================================
+
+# --- Binários compilados do MetaTrader ---------------------------------------
+*.ex5
+*.ex4
+
+# --- Dados: nunca versionados ------------------------------------------------
+# Ticks da Dukascopy (a redistribuição pode violar os termos da fonte, e o
+# volume inviabiliza o Git de qualquer forma) e qualquer dataset derivado.
+data/
+MQL5/Files/
+
+# Caches e áreas de staging de ferramentas de download de tick.
+# Criados na raiz por ferramenta externa — não fazem parte da árvore da §4.1.
+.dukascopy-cache/
+download/
+
+# --- Caminhos de máquina -----------------------------------------------------
+# O GUID do terminal muda por instalação. Nenhum caminho absoluto de máquina
+# entra em arquivo versionado (§10).
+tools/setup/local_paths.*
+# ...mas o modelo precisa ser versionado, senão uma máquina nova não tem de
+# onde partir. A regra acima o engoliria.
+!tools/setup/local_paths.example.*
+
+# --- Saídas do Strategy Tester e logs ----------------------------------------
+**/tester/
+*.log
+
+# --- Credenciais -------------------------------------------------------------
+.env
+
+# --- Ambiente Python (tools/analysis) ----------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
