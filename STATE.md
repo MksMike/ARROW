@@ -10,9 +10,9 @@
 
 | Campo | Valor |
 |---|---|
-| Status | `ABERTA` |
+| Status | `FECHADA` |
 | Máquina | PC-Home |
-| Branch | `session/2026-08-02-camada-de-dados` |
+| Branch | `main` — sessão mergeada e pushada |
 | Aberta em | 2026-08-02 |
 | Última atualização | 2026-08-02 |
 
@@ -24,10 +24,27 @@
 
 ## Em andamento
 
-Camada de dados, conforme ADR 0005. Itens 1 e 2 do brief: `BrokerTickLogger.mq5` e
-`loader.py` + `validate.py`.
+Nada em execução no repositório. Duas coisas rodando **fora** dele:
 
-O bootstrap foi mergeado em `main` e pushado — o repositório remoto deixou de estar vazio.
+1. **Download da Dukascopy** — ver seção própria abaixo.
+2. **Nada mais.** Em particular, o `BrokerTickLogger` **não está coletando** — ver "Ação que
+   depende do usuário".
+
+## Ação que depende do usuário — urgente
+
+**`BrokerTickLogger.mq5` compila limpo mas não está rodando.** Um Script MQL5 precisa ser
+anexado a um gráfico por um humano; não há como iniciá-lo por linha de comando.
+
+Para colocar em produção, no MT5 de PC-Home:
+
+1. Abrir um gráfico de **`XAUUSDm`** (qualquer timeframe — o script lê tick, não barra)
+2. Navegador → Scripts → ARROW → arrastar `BrokerTickLogger` para o gráfico
+3. Deixar `InpBackfill = false` na primeira execução; ligar depois, se quiser puxar o histórico
+   ainda retido, sabendo que ele atravessa fronteira de DST em potencial
+4. **Não remover do gráfico.** Confirmar que `data/broker/xauusdm-AAAAMMDD.csv` aparece e cresce
+
+Enquanto isso não acontecer, `spread/`, `curated/` e `bars/` seguem impossíveis, e **cada dia é
+perdido para sempre** — a janela de retenção do broker rola.
 
 ## Bloqueado
 
@@ -59,26 +76,52 @@ O bootstrap foi mergeado em `main` e pushado — o repositório remoto deixou de
 Enquanto a tese e a semântica de `confidence` não voltarem do chat, o trabalho segue pelo ADR
 0005 e para antes de qualquer sensor.
 
-1. **`Scripts/ARROW/BrokerTickLogger.mq5` em produção contínua** — precisa estar anexado a um
-   gráfico de `XAUUSDm` no MT5 e **permanecer rodando**. Cada dia não coletado é verdade de campo
-   perdida para sempre, e `broker/` é o único insumo do modelo de spread.
-2. **`research/lib/loader.py` + `validate.py`** — Dukascopy CSV → Parquet particionado por mês,
-   com relatório de gaps e gráfico de ticks/dia em `reports/`.
-
-Depois disso, e não antes: `DataAudit.mq5`, `spread_model.py`, `curate.py`, `bars.py`,
-`parity.py` + `ParityDump.mq5` (ADR 0005, ordem da §7 do brief).
+1. **Colocar o `BrokerTickLogger` em produção** — ver acima. É do usuário, não meu.
+2. **Auditoria em Python sobre `raw/`** (§18 passo 5) — agora possível, `raw/` existe para
+   2025-08..2026-08: **σ por minuto por bucket de hora**, que substitui as estimativas
+   preliminares das §13.1/13.2, mais densidade de tick por sessão.
+3. **Converter os demais anos** conforme cada CSV fechar:
+   `.venv\Scripts\python.exe research\build_raw.py --csv data\dukascopy\<arquivo>.csv`
+   Conferir antes que o arquivo está estável — rodar sobre CSV em escrita trunca a última linha.
+   **Nunca reprocessar um CSV já convertido sem `--validate-only`:** `write_raw` é append-only e
+   duplicaria `raw/`.
+4. `DataAudit.mq5`, depois `spread_model.py`, `curate.py`, `bars.py`, `parity.py` +
+   `ParityDump.mq5` (ADR 0005, ordem da §7 do brief).
 
 **Nenhum sensor. Nenhuma feature derivada além das nove primitivas de `bars/`.**
 
-## Download da Dukascopy
+## Estado dos dados
 
-Uma corrida única em andamento, cobrindo 2022-08 a 2026-08 em segmentos anuais encadeados, na
-ordem **2025 → 2024 → 2023 → 2022** — o ano mais recente primeiro, para liberar `loader.py` e a
-auditoria antes de o resto chegar. Parâmetros `-bs 10 -bp 500` (§10.1).
+### `data/raw/` — existe, um ano
 
-A corrida anterior, com `-bs 1 -bp 2000`, foi **morta**. O CSV
-`data/dukascopy/xauusd-tick-2022-08-01-2023-08-01.csv` que ela deixou é resto daquela tentativa,
-não entrega da corrida atual.
+| | |
+|---|---|
+| Cobertura | `2025-08-01 00:00:00 UTC` → `2026-07-31 20:59:02.882 UTC` |
+| Ticks | 91.480.835 |
+| Tamanho | 522 MB em Parquet zstd, 12 partições mensais |
+| Defeito estrutural | nenhum — 0 retrocesso de `ts`, 0 `ask < bid`, 0 preço ≤ 0, 0 duplicata |
+| Cobertura | 1 dia útil sem tick: `2026-04-03`, Sexta-feira Santa |
+| Relatório | `reports/xauusd-2025-08_2026-08-validacao.md` |
+
+O último tick cai exatamente na borda do intervalo diário do símbolo (20:58). É evidência
+independente a favor da hipótese de servidor UTC+0 da §10.7 — **de uma estação só**, portanto não
+substitui o teste das duas.
+
+### `data/broker/` — vazio
+
+Nada coletado. Ver "Ação que depende do usuário".
+
+### Download da Dukascopy
+
+Corrida única em andamento, 2022-08 a 2026-08 em segmentos anuais, ordem
+**2025 → 2024 → 2023 → 2022**, parâmetros `-bs 10 -bp 500` (§10.1).
+
+- `2025-08 → 2026-08`: **completo e já convertido para `raw/`**
+- `2024-08 → 2025-08`: baixando
+- `2023`, `2022`: na fila
+
+O CSV `xauusd-tick-2022-08-01-2023-08-01.csv` (173 MB) é **resto da corrida anterior, morta**.
+Está truncado. Não converter — será refeito pela corrida atual.
 
 ## Decisões pendentes de ADR
 
@@ -108,4 +151,5 @@ não entrega da corrida atual.
 
 | Data | Máquina | Relatório |
 |---|---|---|
+| 2026-08-02 | PC-Home | [camada de dados](docs/sessions/2026-08-02-0730-camada-de-dados.md) |
 | 2026-08-02 | PC-Home | [bootstrap](docs/sessions/2026-08-02-0700-bootstrap.md) |
