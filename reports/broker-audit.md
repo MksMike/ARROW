@@ -50,6 +50,18 @@ A tabela da §13 é premissa não verificada. Estes são os valores que o servid
 | `swap_mode` | 1 |  |
 | `swap_rollover3days` | 3 |  |
 | `chart_mode` | 0 |  |
+| `trade_exemode` | 2 |  |
+| `trade_calc_mode` | 0 |  |
+| `trade_mode` | 4 |  |
+| `filling_mode` | 3 |  |
+| `expiration_mode` | 15 |  |
+| `order_mode` | 127 |  |
+| `margin_initial` | 0.0000 |  |
+| `margin_maintenance` | 0.0000 |  |
+| `path` | Standard\Forex\XAUUSDm |  |
+| `description` | Gold vs US Dollar |  |
+| `margem_1lote_compra` | 31844.00 | JPY |
+| `margem_1lote_venda` | 31830.00 | JPY |
 | `lucro_1lote_move_1usd` | 15743.00 | JPY |
 | `m1_primeira_barra` | 2014.01.14 00:00 |  |
 | `m1_barras` | 3265408 |  |
@@ -60,5 +72,5 @@ A tabela da §13 é premissa não verificada. Estes são os valores que o servid
 | Campo | Valor | Unidade |
 |---|---|---|
 | `offset_instantaneo_servidor_menos_gmt` | 0 | segundos |
-| `hora_servidor` | 2026.08.02 10:37:08 |  |
-| `hora_gmt` | 2026.08.02 10:37:08 |  |
+| `hora_servidor` | 2026.08.02 11:38:00 |  |
+| `hora_gmt` | 2026.08.02 11:38:00 |  |

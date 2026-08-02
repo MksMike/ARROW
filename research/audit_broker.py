@@ -151,10 +151,10 @@ def main() -> int:
 
     REPORTS.mkdir(parents=True, exist_ok=True)
     out = REPORTS / "broker-audit.md"
-    out.write_text("\n".join(L), encoding="utf-8")
+    out.write_text("\n".join(L), encoding="utf-8", newline="\n")
 
     if breaks_path.exists() and not breaks.empty:
-        breaks.to_csv(REPORTS / "daily-breaks.csv", index=False)
+        breaks.to_csv(REPORTS / "daily-breaks.csv", index=False, lineterminator="\n")
 
     print(f"veredicto de fuso: {veredicto}")
     print(f"relatório: {out}")

@@ -560,7 +560,11 @@ def main() -> int:
     L += RP.sec_regeneracao()
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text("\n".join(L) + "\n", encoding="utf-8")
+    # newline="\n" para o arquivo em disco sair igual ao que o git armazena
+    # (.gitattributes normaliza para LF). Sem isso, toda regeneração aparece
+    # como modificada mesmo sem mudar conteúdo — e `git status` deixa de
+    # responder "este documento está atualizado?".
+    OUT.write_text("\n".join(L) + "\n", encoding="utf-8", newline="\n")
     print(f"gerado: {OUT}  ({len(L)} linhas)")
     return 0
 
