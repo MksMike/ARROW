@@ -15,7 +15,7 @@
 | Branch | `main` — sessão mergeada e pushada |
 | Aberta em | 2026-08-02 |
 | Última atualização | 2026-08-02 |
-| Última sessão | `dataaudit` |
+| Última sessão | `foco-xauusd` |
 
 > **Se Status = ABERTA numa máquina diferente da atual:** não iniciar trabalho. Avisar o usuário,
 > mostrar máquina e horário, e perguntar se a sessão foi abandonada. Sessão abandonada é fechada
@@ -65,8 +65,9 @@ do gráfico. Gravou `data/broker/BTCUSDm-20260802.csv` — 4.863 linhas. A §14 
 instrumentos, e a ADR 0005 define `data/broker/` como ticks do `XAUUSDm`; esse arquivo
 **contamina a camada** e envenenaria o modelo de spread sem levantar erro.
 
-> **Pendente de decisão do usuário:** apagar `data/broker/BTCUSDm-20260802.csv`. Não apago dado
-> sem autorização. Enquanto ele existir, `spread_model.py` não pode varrer `broker/*.csv` cegamente.
+> **Resolvido (ADR 0007):** o arquivo saiu de `data/broker/` e foi para `data/_fora-de-escopo/`.
+> Não foi apagado — é dado real e guardar não custa nada —, mas não podia ficar onde
+> `spread_model.py` vai varrer.
 
 `InpSymbol` agora tem padrão `XAUUSDm` e não herda do gráfico; qualquer outro símbolo emite aviso
 explícito no log.
@@ -94,7 +95,6 @@ pendente, e é justamente ele que distingue um servidor UTC fixo de um que deslo
 | Item | Bloqueado por |
 |---|---|
 | Gate 1 | Escolha de T dentro da faixa de 1 a 30 barras não tem critério — ver nota abaixo |
-| Auditoria de `XAUUSDz` | símbolo não selecionável pelo `DataAudit` — provavelmente fora do Market Watch |
 | Primeiro sensor | Tese mecânica não escrita (CLAUDE.md §18 passo 3) |
 | Primeiro sensor | Semântica de `confidence` no `SensorOut` não definida (CLAUDE.md §5.2) |
 | Modelo de spread, `curated/`, `bars/` | `broker/` sem amostra — coleta armada em 2026-08-02, primeiro tick de sessão só em 22:05 UTC |
@@ -218,6 +218,7 @@ Parâmetros `-bs 10 -bp 500` (§10.1). Os CSVs são descartáveis e reconstituí
 | Assunto | Onde foi decidido | ADR |
 |---|---|---|
 | Camada de dados e paridade Python/MQL5 | task brief do chat, 2026-08-02 | **0005 — escrito** |
+| Foco único em XAUUSDm | chat, 2026-08-02 | **0007 — escrito** |
 | Exclusão dos feriados do dataset | chat, 2026-08-02 | **0006 — escrito** |
 | Escolha de T dentro da faixa do Gate 1 | não decidido em lugar nenhum | falta debate |
 | Semântica de `confidence` | não decidido em lugar nenhum | falta debate |
@@ -242,6 +243,7 @@ Parâmetros `-bs 10 -bp 500` (§10.1). Os CSVs são descartáveis e reconstituí
 
 | Data | Máquina | Relatório |
 |---|---|---|
+| 2026-08-02 | PC-Home | [foco único em XAUUSDm](docs/sessions/2026-08-02-2000-foco-xauusd.md) |
 | 2026-08-02 | PC-Home | [DataAudit e fechamento da §10.7](docs/sessions/2026-08-02-1930-dataaudit.md) |
 | 2026-08-02 | PC-Home | [auditoria de σ](docs/sessions/2026-08-02-1900-sigma.md) |
 | 2026-08-02 | PC-Home | [símbolo e retomada do logger](docs/sessions/2026-08-02-1840-logger-simbolo.md) |

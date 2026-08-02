@@ -13,6 +13,7 @@
 | [0004](0004-repositorio-publico-dados-fora-do-repo.md) | Repositório público, dados fora do repositório | aceito | chat 2026-08-02 |
 | [0005](0005-camada-de-dados-e-paridade.md) | Camada de dados e paridade Python ↔ MQL5 | aceito | chat 2026-08-02 |
 | [0006](0006-feriados-excluidos-do-dataset.md) | Feriados de mercado excluídos do dataset | aceito | chat 2026-08-02 |
+| [0007](0007-foco-unico-em-xauusd.md) | Foco único em XAUUSDm até existir catálogo validado | aceito | chat 2026-08-02 |
 
 ## Pendentes de ADR
 
