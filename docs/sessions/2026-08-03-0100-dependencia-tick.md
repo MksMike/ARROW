@@ -4,7 +4,7 @@
 |---|---|
 | Máquina | PC-Home |
 | Branch | `session/2026-08-03-dependencia-tick` |
-| Commits | `fbe8ce4..<encerramento>` |
+| Commits | `fbe8ce4..caab3dc` |
 | Duração | ~2 h |
 
 ## Objetivo declarado
