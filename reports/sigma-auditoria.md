@@ -14,9 +14,9 @@ alcançar `R` é `T = (R/σ)²`. Portanto a medição é diretamente comparável
 |---|---|
 | Lidos de `raw/` | 240,344,662 |
 | Removidos por feriado (ADR 0006) | 32,239 |
-| Removidos por estar fora da sessão (§10.6) | 1,749,967 |
+| Removidos por estar fora da sessão (§10.6) | 386,246 |
 
-Barras M1 resultantes: **1,381,664**. Variações entre minutos adjacentes: **1,380,142**. Pares descartados por não serem consecutivos: 1,521 — são as bordas da parada diária e dos fins de semana, onde a diferença de preço não é uma variação de um minuto.
+Barras M1 resultantes: **1,400,905**. Variações entre minutos adjacentes: **1,399,354**. Pares descartados por não serem consecutivos: 1,550 — são as bordas da parada diária e dos fins de semana, onde a diferença de preço não é uma variação de um minuto.
 
 ---
 
@@ -29,7 +29,7 @@ Barras M1 resultantes: **1,381,664**. Variações entre minutos adjacentes: **1,
 | Asiático | 00–07 | 62,999 | **2.500** | 1.453 | 0.50 | **5.00×** |
 | Londres | 07–12 | 45,000 | **2.245** | 1.334 | 1.20 | **1.87×** |
 | Sobreposição LDN/NY | 12–16 | 35,996 | **3.318** | 2.090 | 2.20 | **1.51×** |
-| Nova York | 16–21 | 43,832 | **2.416** | 1.275 | — | — |
+| Nova York | 16–21 | 43,920 | **2.417** | 1.275 | — | — |
 
 ### Quatro anos agregados — mostrado para expor o viés, não para usar
 
@@ -38,7 +38,7 @@ Barras M1 resultantes: **1,381,664**. Variações entre minutos adjacentes: **1,
 | Asiático | 00–07 | 429,822 | **1.137** | 0.390 | 0.50 | **2.27×** |
 | Londres | 07–12 | 306,871 | **1.055** | 0.460 | 1.20 | **0.88×** |
 | Sobreposição LDN/NY | 12–16 | 245,292 | **1.600** | 0.756 | 2.20 | **0.73×** |
-| Nova York | 16–21 | 300,075 | **1.108** | 0.405 | — | — |
+| Nova York | 16–21 | 300,739 | **1.108** | 0.405 | — | — |
 
 ---
 
@@ -48,11 +48,11 @@ Barras M1 resultantes: **1,381,664**. Variações entre minutos adjacentes: **1,
 
 | Ano | Barras | Preço mediano | σ (USD) | σ (bps) |
 |---|---|---|---|---|
-| 2022 | 143,510 | $1,736 | 0.436 | 2.51 |
-| 2023 | 343,365 | $1,945 | 0.423 | 2.17 |
-| 2024 | 343,466 | $2,380 | 0.586 | 2.46 |
-| 2025 | 347,166 | $3,345 | 1.139 | 3.41 |
-| 2026 | 202,635 | $4,597 | 2.594 | 5.64 |
+| 2022 | 145,511 | $1,737 | 0.433 | 2.49 |
+| 2023 | 348,233 | $1,945 | 0.420 | 2.16 |
+| 2024 | 348,343 | $2,379 | 0.583 | 2.45 |
+| 2025 | 352,064 | $3,345 | 1.133 | 3.39 |
+| 2026 | 205,203 | $4,601 | 2.590 | 5.63 |
 
 ---
 
@@ -62,11 +62,11 @@ Barras M1 resultantes: **1,381,664**. Variações entre minutos adjacentes: **1,
 
 | Ano | Preço mediano | Asiático | Londres | Sobrep. LDN/NY | Nova York | Asiático ÷ Sobrep. |
 |---|---|---|---|---|---|---|
-| 2022 | $1,736 | 0.300 | 0.409 | 0.709 | 0.379 | **0.42** |
+| 2022 | $1,737 | 0.300 | 0.409 | 0.709 | 0.379 | **0.42** |
 | 2023 | $1,945 | 0.295 | 0.360 | 0.681 | 0.376 | **0.43** |
-| 2024 | $2,380 | 0.485 | 0.486 | 0.926 | 0.504 | **0.52** |
-| 2025 | $3,345 | 1.067 | 1.028 | 1.498 | 1.019 | **0.71** |
-| 2026 | $4,597 | 2.500 | 2.245 | 3.318 | 2.416 | **0.75** |
+| 2024 | $2,379 | 0.485 | 0.486 | 0.926 | 0.504 | **0.52** |
+| 2025 | $3,345 | 1.067 | 1.028 | 1.498 | 1.018 | **0.71** |
+| 2026 | $4,601 | 2.500 | 2.245 | 3.318 | 2.417 | **0.75** |
 
 A §13.2 afirma que a sessão asiática é *"~3× mais exigente em edge para o mesmo tempo
 de exposição"*. Isso exige σ da asiática ~3× **menor** que a da sobreposição, ou seja
@@ -97,7 +97,7 @@ para dimensionar alvos em dólares hoje subestimaria o alcance real do preço.
 | Asiático | 2.500 | 0.2 min | 1.4 min | 4.0 min |
 | Londres | 2.245 | 0.2 min | 1.8 min | 5.0 min |
 | Sobreposição LDN/NY | 3.318 | 0.1 min | 0.8 min | 2.3 min |
-| Nova York | 2.416 | 0.2 min | 1.5 min | 4.3 min |
+| Nova York | 2.417 | 0.2 min | 1.5 min | 4.3 min |
 
 Cruzando com a §13.1: R=$1 exige +10 pp de acerto direcional, R=$3 exige +3,3 pp e
 R=$5 exige +2 pp. O que esta tabela diz é **quanto tempo de exposição** cada um desses

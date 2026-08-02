@@ -15,7 +15,7 @@
 | Branch | `main` — sessão mergeada e pushada |
 | Aberta em | 2026-08-02 |
 | Última atualização | 2026-08-02 |
-| Última sessão | `logger-armado` |
+| Última sessão | `dataaudit` |
 
 > **Se Status = ABERTA numa máquina diferente da atual:** não iniciar trabalho. Avisar o usuário,
 > mostrar máquina e horário, e perguntar se a sessão foi abandonada. Sessão abandonada é fechada
@@ -94,6 +94,7 @@ pendente, e é justamente ele que distingue um servidor UTC fixo de um que deslo
 | Item | Bloqueado por |
 |---|---|
 | Gate 1 | Escolha de T dentro da faixa de 1 a 30 barras não tem critério — ver nota abaixo |
+| Auditoria de `XAUUSDz` | símbolo não selecionável pelo `DataAudit` — provavelmente fora do Market Watch |
 | Primeiro sensor | Tese mecânica não escrita (CLAUDE.md §18 passo 3) |
 | Primeiro sensor | Semântica de `confidence` no `SensorOut` não definida (CLAUDE.md §5.2) |
 | Modelo de spread, `curated/`, `bars/` | `broker/` sem amostra — coleta armada em 2026-08-02, primeiro tick de sessão só em 22:05 UTC |
@@ -177,6 +178,20 @@ dados:** `raw/` está pronta, e `spread/`, `curated/` e `bars/` dependem só de 
 
 ### Medições feitas
 
+**Fuso — §10.7 FECHADA.** Servidor = UTC, relógio fixo. A parada diária desliza exatamente uma
+hora entre julho (`20:58`) e janeiro (`21:58`), sem exceção em 31 dias. `reports/broker-audit.md`.
+
+> **Mas a sessão configurada do símbolo desliza com o DST americano**, e a primeira versão da
+> máscara em `research/lib/sessions.py` cravava 20:58 o ano inteiro — descartando 1,36 milhão de
+> ticks de negociação real no inverno. Corrigido e reprocessado. **O achado de σ sobreviveu
+> intacto**: a razão asiático/sobreposição ficou idêntica em todos os cinco anos, porque as horas
+> 0–15 não chegam perto da parada. Só Nova York mexeu, +0,0013.
+
+**Spec do símbolo confirmada** — dígitos, point, contract size, stops, volumes, swap e rollover
+batem com o servidor. Três adições: `SYMBOL_CHART_MODE = Bid` (a premissa da §10.3 virou fato),
+tick value ¥15,7427 por dois caminhos independentes, e **histórico M1 do broker desde 2014-01-14
+com 3.265.408 barras** — a retenção curta é de tick, não de barra.
+
 **σ por sessão e por hora** — `reports/sigma-auditoria.md`, sobre 1.380.142 barras M1. A §13.2
 deixou de conter estimativa e passou a conter medição.
 
@@ -227,6 +242,7 @@ Parâmetros `-bs 10 -bp 500` (§10.1). Os CSVs são descartáveis e reconstituí
 
 | Data | Máquina | Relatório |
 |---|---|---|
+| 2026-08-02 | PC-Home | [DataAudit e fechamento da §10.7](docs/sessions/2026-08-02-1930-dataaudit.md) |
 | 2026-08-02 | PC-Home | [auditoria de σ](docs/sessions/2026-08-02-1900-sigma.md) |
 | 2026-08-02 | PC-Home | [símbolo e retomada do logger](docs/sessions/2026-08-02-1840-logger-simbolo.md) |
 | 2026-08-02 | PC-Home | [exclusão dos feriados](docs/sessions/2026-08-02-1720-feriados.md) |

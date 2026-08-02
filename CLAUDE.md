@@ -499,33 +499,45 @@ A Dukascopy negocia nos horários dela; a Exness tem intervalo diário e fecha s
 opera em janelas onde não haveria execução possível, e o resultado infla em silêncio — as bordas
 são justamente onde o preço se move sem que se possa reagir.
 
-Sessões do símbolo: domingo 22:00–24:00 (negociação a partir de 22:05); segunda a quinta
-00:00–20:58 e 22:00–24:00; sexta 00:00–20:58; sábado fechado.
+Sessões do símbolo **no verão americano**: domingo 22:00–24:00 (negociação a partir de 22:05);
+segunda a quinta 00:00–20:58 e 22:00–24:00; sexta 00:00–20:58; sábado fechado.
 
-### 10.7 Fuso — hipótese a confirmar
+**No inverno americano tudo desloca +1 hora.** Medido, não suposto (§10.7): a parada diária é
+`20:58→22:02` em julho e `21:58→23:01` em janeiro, sem exceção em 31 dias amostrados. O relógio
+do servidor é fixo; o que se move é o calendário do COMEX por baixo dele, e a sessão configurada
+do símbolo acompanha.
 
-O intervalo diário (20:58–22:00) corresponde à manutenção do COMEX (17:00–18:00 NY =
-21:00–22:00 UTC no verão), o que indica **servidor UTC+0** e alinharia a Dukascopy diretamente.
-As janelas deslizam uma hora no inverno americano — a armadilha de DST permanece, apenas muda de
-lugar.
+Tratar `20:58` como constante do ano inteiro **descarta uma hora real de negociação por dia
+durante o inverno** — na prática 1,36 milhão de ticks nos quatro anos de `raw/`. Implementado com
+a regra de DST em `research/lib/sessions.py`.
 
-**Como verificar, e como não verificar.** `TimeCurrent()` vs `TimeGMT()` mede o offset **no
-instante da chamada**. Chamar as duas funções não diz nada sobre DST: entrega uma estação só, a
-de hoje, e um servidor que desloca uma hora em março produz exatamente a mesma leitura de um
-servidor que nunca desloca. O critério é satisfeito por uma medição que não responde à pergunta.
+### 10.7 Fuso — CONFIRMADO
 
-O teste correto ancora o horário do servidor a um evento cujo instante em UTC é conhecido de
-forma independente, **duas vezes: uma em janeiro e uma em julho**:
+**Servidor = UTC, relógio fixo.** Medido em 2026-08-02 por `MQL5/Scripts/ARROW/DataAudit.mq5`
+sobre o histórico M1 do broker; veredicto em `reports/broker-audit.md`.
 
-- Localizar no histórico de barras M1 a borda do intervalo diário (início e fim da lacuna de
-  20:58–22:00) numa semana de janeiro e numa semana de julho
-- Converter cada borda para UTC pela hipótese de servidor UTC+0 e comparar com o instante UTC
-  real da manutenção do COMEX naquela data, que se desloca com o DST americano
-- **Se o offset medido for igual nas duas estações**, o servidor não observa DST e a hipótese
-  UTC+0 se sustenta. **Se diferir em uma hora**, o servidor segue algum DST e todo alinhamento
-  com a Dukascopy precisa de conversão por data, não por constante
+| Estação | Parada diária (hora de servidor) | Dias |
+|---|---|---|
+| Julho (verão americano) | `20:58` → `22:02` | 16 de 16 |
+| Janeiro (inverno americano) | `21:58` → `23:01` | 15 de 15 |
 
-O resultado é um número em cada estação, registrado no relatório. "Parece UTC" não é resultado.
+O teste não precisou de fonte externa: o símbolo se testa contra si mesmo. A manutenção do COMEX
+é 17:00–18:00 em Nova York, o que em UTC é 21:00–22:00 no verão e 22:00–23:00 no inverno, porque
+Nova York muda e UTC não. Logo, se o relógio do servidor observasse DST a parada ficaria na mesma
+hora nas duas estações; **ela desliza exatamente uma hora, sem uma única exceção em 31 dias.** O
+relógio não se mexe.
+
+Consequências, e a segunda é a que mais custa:
+
+1. **Alinhamento com a Dukascopy por constante**, não por data. As duas são UTC.
+2. **Mas a sessão configurada do símbolo desliza com o DST americano** (§10.6). Em janeiro há
+   barras M1 até 21:57; se a sessão terminasse às 20:58 o ano inteiro, não existiria barra
+   nenhuma entre 20:58 e 21:58. Toda máscara de sessão precisa da regra de DST.
+
+**Por que não `TimeCurrent()` vs `TimeGMT()`:** essas funções medem o offset no instante da
+chamada. Entregam uma estação só, e um servidor que desloca uma hora em março produz leitura
+idêntica a um que nunca desloca. O offset instantâneo foi medido em zero e é consistente com o
+resultado — mas sozinho ele não teria respondido nada.
 
 Todo timestamp interno em UTC; conversão apenas na borda.
 
@@ -703,8 +715,18 @@ fonte), ticks do broker, qualquer identificador pessoal.
 | Drawdown máximo tolerado | `<<PENDENTE>>` |
 | Critério para passar de demo a real | `<<PENDENTE>>` |
 
-Esta tabela é **premissa não verificada**. Toda linha deve ser confirmada por medição contra o
-símbolo real; onde a medição divergir, a medição vence e a tabela é corrigida por commit próprio.
+**Confirmada por medição** em 2026-08-02 (`reports/broker-audit.md`): dígitos, point, contract
+size, nível de stops, volumes, swap e rollover ×3 batem com o servidor. Duas adições medidas:
+
+- `SYMBOL_CHART_MODE = Bid` — o MT5 **de fato** plota bid, o que era premissa da §10.3
+- Tick value **¥15,7427** por tick de 1 lote, e ¥15.743 para um movimento de $1/oz. Os dois
+  saem de caminhos independentes (`SYMBOL_TRADE_TICK_VALUE` e `OrderCalcProfit`) e batem entre
+  si; implicam USDJPY ≈ 157,4
+- Histórico M1 do broker desde **2014-01-14**, 3.265.408 barras. A retenção curta é de **tick**,
+  não de barra — o que abre 12 anos de sobreposição para medir o gap de fonte da §11.2
+
+O spread não foi medido com o mercado aberto e continua sendo premissa. `XAUUSDz` não foi
+auditado: o script não conseguiu selecioná-lo.
 
 ### 13.1 O custo como exigência de edge
 
