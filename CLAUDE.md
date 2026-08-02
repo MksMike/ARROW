@@ -725,8 +725,8 @@ size, nível de stops, volumes, swap e rollover ×3 batem com o servidor. Duas a
 - Histórico M1 do broker desde **2014-01-14**, 3.265.408 barras. A retenção curta é de **tick**,
   não de barra — o que abre 12 anos de sobreposição para medir o gap de fonte da §11.2
 
-O spread não foi medido com o mercado aberto e continua sendo premissa. `XAUUSDz` não foi
-auditado: o script não conseguiu selecioná-lo.
+O spread não foi medido com o mercado aberto e continua sendo premissa. `XAUUSDz` **não será
+auditado** — o ADR 0007 restringe o projeto a `XAUUSDm` até existir catálogo validado.
 
 ### 13.1 O custo como exigência de edge
 
@@ -810,7 +810,11 @@ Linha futura, fora do escopo atual.
 - Otimização de parâmetros antes do Gate 2 ter sido passado isoladamente
 - Componentes auto-adaptativos ou de aprendizado online em produção
 - Sensor escrito em MQL5 antes de a hipótese sobreviver a teste em `research/`
-- Outros instrumentos ou timeframes além de XAUUSD M1 (M5/M15/M30 apenas como contexto macro)
+- Outros instrumentos, contas ou corretoras além de `XAUUSDm` na conta Standard — inclusive
+  `XAUUSDz` e BTCUSD. Entram numa bateria posterior, só depois de existir catálogo de
+  sensores e indicadores validados, e essa bateria exige ADR próprio que declare a correção
+  para testes múltiplos entre instrumentos **antes** de medir (ADR 0007)
+- Outros timeframes além de M1 (M5/M15/M30 apenas como contexto macro)
 - Refatoração estética ou reorganização não solicitada
 - Painéis e dashboards em MQL5 além do necessário para visualizar sensores
 

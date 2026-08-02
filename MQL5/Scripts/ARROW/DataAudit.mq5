@@ -45,7 +45,11 @@
 #property description "Auditoria de spec do simbolo e verificacao de fuso. Nao negocia."
 
 input string InpSymbol      = "XAUUSDm";   // Simbolo a auditar
-input string InpSymbolAlt   = "XAUUSDz";   // Segundo simbolo (vazio = pular)
+input string InpSymbolAlt   = "";         // Segundo simbolo (vazio = pular)
+//   Vazio por decisao: ADR 0007 restringe o projeto a XAUUSDm ate existir
+//   catalogo de sensores validado. Auditar um segundo simbolo convida a
+//   comparar, comparar convida a testar, e testar o mesmo sensor em dois
+//   instrumentos quase identicos e multiplicacao de testes por outra porta.
 input int    InpWinterYear  = 2026;        // Ano da amostra de janeiro
 input int    InpSummerYear  = 2025;        // Ano da amostra de julho
 
