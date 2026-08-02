@@ -15,7 +15,7 @@
 | Branch | `main` — sessão mergeada e pushada |
 | Aberta em | 2026-08-02 |
 | Última atualização | 2026-08-02 |
-| Última sessão | `feriados` |
+| Última sessão | `logger-simbolo` |
 
 > **Se Status = ABERTA numa máquina diferente da atual:** não iniciar trabalho. Avisar o usuário,
 > mostrar máquina e horário, e perguntar se a sessão foi abandonada. Sessão abandonada é fechada
@@ -32,8 +32,11 @@ gargalo da camada de dados, e é o único item cujo custo cresce a cada hora par
 
 ## Ação que depende do usuário — urgente
 
-**`BrokerTickLogger.mq5` compila limpo mas não está rodando.** Um Script MQL5 precisa ser
-anexado a um gráfico por um humano; não há como iniciá-lo por linha de comando.
+**`BrokerTickLogger.mq5` compila limpo e ainda não está coletando XAUUSDm.**
+
+Foi executado em 2026-08-02 08:23 UTC e a execução expôs dois defeitos, ambos corrigidos —
+**o script precisa ser rodado de novo, na versão nova.** Ver "O que aconteceu na primeira
+execução" abaixo.
 
 **Se ele não aparecer no Navegador:** o terminal enumera `MQL5\Scripts` na inicialização, e a
 junction `Scripts\ARROW` foi criada em 2026-08-02 07:25 com o terminal já rodando desde 28/07.
@@ -49,6 +52,37 @@ Para colocar em produção, no MT5 de PC-Home:
 
 Enquanto isso não acontecer, `spread/`, `curated/` e `bars/` seguem impossíveis, e **cada dia é
 perdido para sempre** — a janela de retenção do broker rola.
+
+### O que aconteceu na primeira execução
+
+**Coletou `BTCUSDm`.** O script foi solto num gráfico de BTCUSDm e `InpSymbol` herdava o símbolo
+do gráfico. Gravou `data/broker/BTCUSDm-20260802.csv` — 4.863 linhas. A §14 exclui outros
+instrumentos, e a ADR 0005 define `data/broker/` como ticks do `XAUUSDm`; esse arquivo
+**contamina a camada** e envenenaria o modelo de spread sem levantar erro.
+
+> **Pendente de decisão do usuário:** apagar `data/broker/BTCUSDm-20260802.csv`. Não apago dado
+> sem autorização. Enquanto ele existir, `spread_model.py` não pode varrer `broker/*.csv` cegamente.
+
+`InpSymbol` agora tem padrão `XAUUSDm` e não herda do gráfico; qualquer outro símbolo emite aviso
+explícito no log.
+
+**Um tick de XAUUSDm gravado, e correto.** `XAUUSDm-20260731.csv` tem uma linha:
+`2026-07-31 20:57:59.775`. Domingo o ouro só abre 22:00, então esse é o último tick de sexta,
+imediatamente antes da parada diária das 20:58 — confirmação independente da spec de sessão da
+§10.6.
+
+**Bug de retomada no fim de semana, corrigido.** A retomada procurava o arquivo pela data de
+*parede*; os arquivos são nomeados pela data do *tick*. Com mercado aberto coincidem; fechado,
+divergem — e a evidência está na listagem, com o arquivo em `20260731` contra a data de parede
+`20260802`. Cada restart de fim de semana duplicaria uma linha em silêncio. Agora a retomada
+busca o arquivo mais recente do símbolo, independente do estado do mercado.
+
+### Primeira medição real do offset do servidor
+
+`data/broker/_offset_log.csv` registra **`offset_seconds = 0`** em 2026-08-02 08:23 UTC:
+**o servidor opera em UTC.** É a primeira evidência medida a favor da hipótese da §10.7, e vem de
+**uma estação só** (agosto, verão do norte). Não fecha a questão: o teste das duas estações segue
+pendente, e é justamente ele que distingue um servidor UTC fixo de um que desloca com o DST.
 
 ## Bloqueado
 
@@ -173,6 +207,7 @@ Parâmetros `-bs 10 -bp 500` (§10.1). Os CSVs são descartáveis e reconstituí
 
 | Data | Máquina | Relatório |
 |---|---|---|
+| 2026-08-02 | PC-Home | [símbolo e retomada do logger](docs/sessions/2026-08-02-1840-logger-simbolo.md) |
 | 2026-08-02 | PC-Home | [exclusão dos feriados](docs/sessions/2026-08-02-1720-feriados.md) |
 | 2026-08-02 | PC-Home | [`raw/` dos quatro anos](docs/sessions/2026-08-02-1615-raw-4-anos.md) |
 | 2026-08-02 | PC-Home | [camada de dados](docs/sessions/2026-08-02-0730-camada-de-dados.md) |

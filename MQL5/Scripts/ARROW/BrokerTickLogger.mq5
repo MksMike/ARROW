@@ -49,7 +49,18 @@
 #property description "Coleta continua de ticks reais para data/broker/. Manter rodando."
 
 //--- entradas ---------------------------------------------------------------
-input string InpSymbol       = "";     // Simbolo (vazio = o do grafico)
+//
+// InpSymbol NAO herda o simbolo do grafico, e isso e deliberado.
+//
+// A versao anterior usava "" -> _Symbol, e o resultado foi previsivel: solto
+// num grafico de BTCUSDm, o script coletou BTCUSDm em silencio por uma hora.
+// O projeto e XAUUSD M1 e nada mais (CLAUDE.md secao 14), data/broker/ e
+// definido como ticks do XAUUSDm (ADR 0005), e um arquivo de outro instrumento
+// ali dentro envenena o modelo de spread sem levantar erro nenhum.
+//
+// O script le tick por SIMBOLO, nao por grafico. Nao ha motivo para depender de
+// onde ele foi solto.
+input string InpSymbol       = "XAUUSDm";  // Simbolo (NAO herda do grafico)
 input int    InpPollMs       = 250;    // Intervalo de coleta (ms)
 input bool   InpBackfill     = false;  // Puxar historico retido ao iniciar
 input int    InpBackfillDays = 7;      // Quantos dias de historico puxar
@@ -131,6 +142,57 @@ void LogOffset(const long offset_sec, const string source)
    FileWriteString(h, StringFormat("%s,%d,%s\r\n",
                                    FormatUtcMsc(now_utc_msc), (int)offset_sec, source));
    FileClose(h);
+}
+
+//+------------------------------------------------------------------+
+//| Arquivo de dia mais recente ja gravado para este simbolo.        |
+//|                                                                  |
+//| POR QUE NAO BASTA OLHAR A DATA DE HOJE                           |
+//|   Os arquivos sao nomeados pela data do TICK; a retomada, na      |
+//|   versao anterior, procurava pela data de PAREDE. Enquanto o      |
+//|   mercado esta aberto os dois coincidem e nada aparece. Com o     |
+//|   mercado fechado eles divergem: num domingo, o ultimo tick e de  |
+//|   sexta, entao a busca por XAUUSDm-<domingo>.csv falha, o script  |
+//|   conclui que nao ha de onde retomar, e regrava o tick de sexta   |
+//|   dentro de XAUUSDm-<sexta>.csv. Um restart no fim de semana --   |
+//|   exatamente quando o script e instalado -- duplicava uma linha   |
+//|   por vez, em silencio.                                          |
+//|                                                                  |
+//|   Procurar o arquivo mais recente do simbolo nao depende de o     |
+//|   mercado estar aberto. O nome AAAAMMDD ordena lexicograficamente,|
+//|   entao o maior nome e o dia mais recente.                       |
+//+------------------------------------------------------------------+
+string FindLatestDayFile()
+{
+   string filter = ARROW_DIR + "\\" + g_symbol + "-*.csv";
+   string found  = "";
+
+   long h = FileFindFirst(filter, found);
+   if(h == INVALID_HANDLE)
+      return("");
+
+   string best = "";
+   do
+   {
+      // Conforme o caso, o MQL5 devolve o nome com ou sem o subdiretorio.
+      // Normalizar para comparar so o nome do arquivo.
+      string name = found;
+      int slash = StringFind(name, "\\");
+      while(slash >= 0)
+      {
+         name  = StringSubstr(name, slash + 1);
+         slash = StringFind(name, "\\");
+      }
+      if(StringCompare(name, best) > 0)
+         best = name;
+   }
+   while(FileFindNext(h, found));
+   FileFindClose(h);
+
+   if(best == "")
+      return("");
+
+   return(ARROW_DIR + "\\" + best);
 }
 
 //+------------------------------------------------------------------+
@@ -328,22 +390,30 @@ void OnStart()
    PrintFormat("ARROW BrokerTickLogger: %s, digits=%d, offset servidor-UTC = %d s (%.1f h)",
                g_symbol, g_digits, (int)g_offset_sec, g_offset_sec / 3600.0);
 
-   // --- retomada: procurar o arquivo do dia e continuar de onde parou -------
-   long now_utc_msc = (((long)TimeTradeServer() - g_offset_sec)) * 1000;
-   string today = DayFileName(now_utc_msc);
+   // O projeto e XAUUSD M1 e nada mais (secao 14). Coletar outro instrumento
+   // nao e erro de execucao, entao nao aborta -- mas nao pode passar calado,
+   // porque o arquivo resultante fica indistinguivel dos legitimos em
+   // data/broker/ e envenena o modelo de spread.
+   if(g_symbol != "XAUUSDm")
+      PrintFormat("ARROW: ATENCAO — %s NAO e XAUUSDm. data/broker/ e definido como ticks do "
+                  "XAUUSDm (ADR 0005) e o projeto exclui outros instrumentos (secao 14). "
+                  "Remova este script do grafico se isso nao foi intencional.", g_symbol);
+
+   // --- retomada: continuar do arquivo mais recente, aberto ou fechado ------
+   string latest     = FindLatestDayFile();
    long   resume_msc = 0;
    int    resume_dup = 0;
 
-   if(ScanFileTail(today, resume_msc, resume_dup))
+   if(latest != "" && ScanFileTail(latest, resume_msc, resume_dup))
    {
       g_last_msc    = resume_msc;
       g_dup_at_last = resume_dup;
       PrintFormat("ARROW: retomando %s — ultimo tick gravado em %s (%d no mesmo ms).",
-                  today, FormatUtcMsc(g_last_msc - g_offset_sec * 1000), g_dup_at_last);
+                  latest, FormatUtcMsc(g_last_msc - g_offset_sec * 1000), g_dup_at_last);
    }
    else
    {
-      Print("ARROW: nenhum arquivo do dia encontrado — comecando do tick corrente.");
+      Print("ARROW: nenhum arquivo anterior para este simbolo — comecando do tick corrente.");
       MqlTick t;
       if(SymbolInfoTick(g_symbol, t))
       {
