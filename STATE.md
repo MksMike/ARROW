@@ -12,10 +12,10 @@
 |---|---|
 | Status | `FECHADA` |
 | Máquina | PC-Home |
-| Branch | `main` — sessão mergeada e pushada |
+| Branch | `main` — sessao mergeada e pushada |
 | Aberta em | 2026-08-02 |
-| Última atualização | 2026-08-02 |
-| Última sessão | `referencia` |
+| Última atualização | 2026-08-03 |
+| Última sessão | `dependencia-tick` |
 
 > **Se Status = ABERTA numa máquina diferente da atual:** não iniciar trabalho. Avisar o usuário,
 > mostrar máquina e horário, e perguntar se a sessão foi abandonada. Sessão abandonada é fechada
@@ -31,7 +31,27 @@ Nada em execução no repositório.
 abertura do mercado — domingo 22:05 UTC. O gargalo da camada de dados deixou de ser a instalação
 e passou a ser o tempo: `spread/` precisa de amostra acumulada.
 
-## Coleta de tick do broker — ARMADA
+## Coleta de tick do broker — PARADA, e é o item mais urgente
+
+**O `BrokerTickLogger` não está coletando.** Morreu em 2026-08-02 19:37 local por colisão de
+Script: o MT5 permite **um Script por gráfico**, e soltar o `DataAudit` no mesmo gráfico do
+`XAUUSDm` desalojou o logger. O log do terminal registra os dois eventos com dois segundos de
+diferença.
+
+Nenhum dado foi perdido — o mercado esteve fechado o tempo todo. Mas ele perderia a abertura.
+
+**Ação:** reinstalar em um gráfico **dedicado**, que não receba nenhum outro script. Navegador →
+Scripts → ARROW → arrastar `BrokerTickLogger`. O símbolo não depende do gráfico.
+
+> **Script é o artefato errado para coleta contínua**, e por três razões independentes: morre com
+> outro script no mesmo gráfico, não sobrevive a reinício do terminal, e morre se o gráfico mudar
+> de símbolo ou timeframe. Duas das três já aconteceram em 24 h. Um Expert Advisor não tem
+> nenhuma delas. **Conversão é candidata a próxima sessão e exige ADR.**
+
+O mesmo log confirmou que a correção de retomada funciona em produção:
+`retomando ... (1 no mesmo ms)` com zero ticks regravados.
+
+## Histórico: coleta armada em 2026-08-02
 
 **`BrokerTickLogger.mq5` está rodando em `XAUUSDm` desde 2026-08-02 09:48 UTC**, na versão
 corrigida. Aguarda a abertura de domingo 22:05 UTC (07:05 JST de segunda) para gravar o primeiro
@@ -182,6 +202,26 @@ dados:** `raw/` está pronta, e `spread/`, `curated/` e `bars/` dependem só de 
 > **gerado** por `research/build_reference.py` e não deve ser editado à mão. O `CLAUDE.md` deixou
 > de conter número medido e aponta para lá. Esta seção guarda só o que mudou de estado.
 
+**Dependência em escala de tick e densidade.** Autocovariância dos retornos de tick por lag,
+curva de assinatura, gap de fronteira, bids repetidos, densidade por hora e sessão.
+`reports/dependencia-tick.md`, `research/findings/2026-08-03-dependencia-escala-tick.md`.
+
+- **A dependência NÃO está confinada ao lag 1.** Em 2026 o lag 1 é o menos significativo dos
+  cinco primeiros (|t| = 1,5, indistinguível de zero); o pico está no lag 3 (|t| = 5,6).
+- **E não é propriedade estável.** `γ₁/γ₀` troca de sinal três vezes em cinco anos — −0,027 /
+  +0,069 / +0,004 / −0,081 / −0,009 — e varia uma ordem de grandeza.
+- **O `ρ₁ = +0,0124` do piloto de 2026-06 não sobrevive ao ano inteiro**, que dá −0,0088. O
+  piloto não estava errado: estava medindo um mês.
+- **`rv` do ADR 0005 NÃO está inflado por ruído de cotação.** A dependência líquida é de ordem
+  10⁻² relativa a γ₀ — pequena demais para o mecanismo `s² + 2n·η²`. Hipótese levantada no chat
+  e falsificada por margem larga.
+- **20,9% dos retornos de tick são exatamente zero.** O ADR 0005 define `tick_imb` como *repete o
+  sinal anterior se igual* — em um quinto dos ticks o sinal é copiado, o que é injeção mecânica
+  de autocorrelação numa primitiva que `bars/` vai congelar.
+- **Densidade por sessão medida** (fecha a lacuna da seção 8): asiática com mediana de 106 ticks
+  contra 277 da sobreposição, e **58% das barras asiáticas abaixo de 128 ticks**. A variância por
+  tick da asiática é a maior de todas — ela move mais por tick, com metade dos ticks.
+
 **Fuso — §10.7 FECHADA.** Servidor = UTC, relógio fixo. A parada diária desliza exatamente uma
 hora entre julho (`20:58`) e janeiro (`21:58`), sem exceção em 31 dias. `reports/broker-audit.md`.
 
@@ -224,6 +264,8 @@ Parâmetros `-bs 10 -bp 500` (§10.1). Os CSVs são descartáveis e reconstituí
 | Camada de dados e paridade Python/MQL5 | task brief do chat, 2026-08-02 | **0005 — escrito** |
 | Foco único em XAUUSDm | chat, 2026-08-02 | **0007 — escrito** |
 | Exclusão dos feriados do dataset | chat, 2026-08-02 | **0006 — escrito** |
+| Definição de `tick_imb` no ADR 0005 | medição feita — 20,9% dos ticks copiam o sinal | falta debate |
+| `BrokerTickLogger`: Script ou Expert Advisor | incidente de 2026-08-02 | falta debate |
 | Escolha de T dentro da faixa do Gate 1 | não decidido em lugar nenhum | falta debate |
 | Semântica de `confidence` | não decidido em lugar nenhum | falta debate |
 | Tese mecânica do XAUUSD M1 | não decidido em lugar nenhum | falta debate |
@@ -243,10 +285,19 @@ Parâmetros `-bs 10 -bp 500` (§10.1). Os CSVs são descartáveis e reconstituí
 
 ---
 
+## Pendência de documentação
+
+A seção 7 do `REFERENCIA-XAUUSD.md`, ressalva 2, atribui ao bid-ask bounce uma inflação de σ que a
+aritmética não sustenta: para σ inflar 5% seria preciso η ≈ 0,56/oz, quase três vezes o piso de
+spread. E afirma que corrigir isso exige `data/bars/`, quando sai de `raw/` direto. As duas
+afirmações estão refutadas por medição. `reference_parts.py` precisa de revisão de narrativa —
+**sessão própria**, porque o documento é gerado.
+
 ## Últimas sessões
 
 | Data | Máquina | Relatório |
 |---|---|---|
+| 2026-08-03 | PC-Home | [dependência em escala de tick](docs/sessions/2026-08-03-0100-dependencia-tick.md) |
 | 2026-08-02 | PC-Home | [documento de referência](docs/sessions/2026-08-02-2030-referencia.md) |
 | 2026-08-02 | PC-Home | [foco único em XAUUSDm](docs/sessions/2026-08-02-2000-foco-xauusd.md) |
 | 2026-08-02 | PC-Home | [DataAudit e fechamento da §10.7](docs/sessions/2026-08-02-1930-dataaudit.md) |
