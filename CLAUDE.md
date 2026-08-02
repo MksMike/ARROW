@@ -135,6 +135,7 @@ C:\dev\ARROW\
 │   ├── Indicators/ARROW/          # cascas visuais (finas)
 │   ├── Experts/ARROW/
 │   │   ├── Harness/               # EA de teste isolado, um por sensor
+│   │   ├── Infra/                 # EAs de infraestrutura que NAO negociam (ADR 0008)
 │   │   └── Live/                  # EAs orquestradoras
 │   └── Scripts/ARROW/             # importação de ticks, auditoria, utilitários
 ├── tools/

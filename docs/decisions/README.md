@@ -14,6 +14,7 @@
 | [0005](0005-camada-de-dados-e-paridade.md) | Camada de dados e paridade Python ↔ MQL5 | aceito | chat 2026-08-02 |
 | [0006](0006-feriados-excluidos-do-dataset.md) | Feriados de mercado excluídos do dataset | aceito | chat 2026-08-02 |
 | [0007](0007-foco-unico-em-xauusd.md) | Foco único em XAUUSDm até existir catálogo validado | aceito | chat 2026-08-02 |
+| [0008](0008-coletor-de-tick-como-ea.md) | O coletor de tick é Expert Advisor, não Script | aceito | Code, 2026-08-03 |
 
 ## Pendentes de ADR
 
