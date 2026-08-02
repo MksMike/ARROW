@@ -15,7 +15,7 @@
 | Branch | `main` — sessão mergeada e pushada |
 | Aberta em | 2026-08-02 |
 | Última atualização | 2026-08-02 |
-| Última sessão | `logger-simbolo` |
+| Última sessão | `sigma` |
 
 > **Se Status = ABERTA numa máquina diferente da atual:** não iniciar trabalho. Avisar o usuário,
 > mostrar máquina e horário, e perguntar se a sessão foi abandonada. Sessão abandonada é fechada
@@ -93,8 +93,7 @@ pendente, e é justamente ele que distingue um servidor UTC fixo de um que deslo
 | Primeiro sensor | Semântica de `confidence` no `SensorOut` não definida (CLAUDE.md §5.2) |
 | Modelo de spread, `curated/`, `bars/` | `BrokerTickLogger` existe e compila, mas não está rodando — sem `broker/` não há modelo |
 | Qualquer conclusão de Gate 2 | Capital inicial e drawdown tolerado não definidos (CLAUDE.md §13) |
-| Substituição das estimativas de σ | auditoria Python sobre `raw/` não construída (CLAUDE.md §18 passo 5) |
-| Calibração de normalização de sensor | mesma auditoria |
+| Calibração de normalização de sensor | precisa de gerador de passeio aleatório calibrado com a σ medida (ADR 0002) |
 
 > **O horizonte T do Gate 1 continua em aberto.** A revisão do `CLAUDE.md` de 2026-08-02 removeu
 > a derivação `T_min = (c/kσ)²`, mas **apagar a fórmula não respondeu a pergunta que ela fazia**:
@@ -116,10 +115,8 @@ Enquanto a tese e a semântica de `confidence` não voltarem do chat, o trabalho
 
 1. **Colocar o `BrokerTickLogger` em produção** — ver acima. É do usuário, não meu, e agora é o
    único bloqueio da camada de dados.
-2. **Auditoria em Python sobre `raw/`** (§18 passo 5) — desbloqueada, e agora sobre os quatro
-   anos inteiros: **σ por minuto por bucket de hora**, que substitui as estimativas preliminares
-   das §13.1/13.2, mais densidade de tick por sessão. É o insumo mais importante do projeto e não
-   depende de `broker/`.
+2. ~~Auditoria de σ sobre `raw/`~~ — **feita**, ver "Medições feitas" abaixo. Falta a
+   **densidade de tick por sessão**, que é o resto do passo 5 da §18.
 3. `DataAudit.mq5`, depois `spread_model.py`, `curate.py`, `bars.py`, `parity.py` +
    `ParityDump.mq5` (ADR 0005, ordem da §7 do brief). Do `spread_model.py` em diante tudo
    depende de `broker/`.
@@ -173,6 +170,24 @@ substitui o teste das duas.
 Nada coletado. Ver "Ação que depende do usuário". **É o único gargalo restante da camada de
 dados:** `raw/` está pronta, e `spread/`, `curated/` e `bars/` dependem só de `broker/`.
 
+### Medições feitas
+
+**σ por sessão e por hora** — `reports/sigma-auditoria.md`, sobre 1.380.142 barras M1. A §13.2
+deixou de conter estimativa e passou a conter medição.
+
+**A premissa de que a sessão asiática é ~3× mais exigente foi refutada.** A razão
+σ_asiático/σ_sobreposição subiu monotonicamente por cinco anos — 0,42 → 0,43 → 0,52 → 0,71 →
+**0,75** — contra os ~0,23 que a afirmação exigia. Em 2026 a hora 1 UTC (abertura da Shanghai
+Gold Exchange) é a segunda hora mais volátil do dia. Registrado em
+`research/findings/2026-08-02-sigma-por-sessao.md`.
+
+**σ em dólares triplicou em dois anos** (0,586 → 2,594), mas em bps do preço subiu bem menos
+(2,46 → 5,64): a maior parte é nível de preço, não regime. **Toda tabela em dólares precisa ser
+remedida quando o ouro mudar de patamar.**
+
+**Ressalva registrada:** σ de fechamento a fechamento no M1 está inflada por bid-ask bounce, então
+os tempos `T = (R/σ)²` da §13.2 são o melhor caso, não a expectativa.
+
 ### Download da Dukascopy — CONCLUÍDO
 
 Os quatro segmentos anuais baixados e convertidos, 11 GB de CSV em `data/dukascopy/`.
@@ -207,6 +222,7 @@ Parâmetros `-bs 10 -bp 500` (§10.1). Os CSVs são descartáveis e reconstituí
 
 | Data | Máquina | Relatório |
 |---|---|---|
+| 2026-08-02 | PC-Home | [auditoria de σ](docs/sessions/2026-08-02-1900-sigma.md) |
 | 2026-08-02 | PC-Home | [símbolo e retomada do logger](docs/sessions/2026-08-02-1840-logger-simbolo.md) |
 | 2026-08-02 | PC-Home | [exclusão dos feriados](docs/sessions/2026-08-02-1720-feriados.md) |
 | 2026-08-02 | PC-Home | [`raw/` dos quatro anos](docs/sessions/2026-08-02-1615-raw-4-anos.md) |
