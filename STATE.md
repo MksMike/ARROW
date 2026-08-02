@@ -15,7 +15,7 @@
 | Branch | `main` — sessão mergeada e pushada |
 | Aberta em | 2026-08-02 |
 | Última atualização | 2026-08-02 |
-| Última sessão | `foco-xauusd` |
+| Última sessão | `referencia` |
 
 > **Se Status = ABERTA numa máquina diferente da atual:** não iniciar trabalho. Avisar o usuário,
 > mostrar máquina e horário, e perguntar se a sessão foi abandonada. Sessão abandonada é fechada
@@ -178,6 +178,10 @@ dados:** `raw/` está pronta, e `spread/`, `curated/` e `bars/` dependem só de 
 
 ### Medições feitas
 
+> **Tudo que foi medido vive em [`docs/REFERENCIA-XAUUSD.md`](docs/REFERENCIA-XAUUSD.md)**, que é
+> **gerado** por `research/build_reference.py` e não deve ser editado à mão. O `CLAUDE.md` deixou
+> de conter número medido e aponta para lá. Esta seção guarda só o que mudou de estado.
+
 **Fuso — §10.7 FECHADA.** Servidor = UTC, relógio fixo. A parada diária desliza exatamente uma
 hora entre julho (`20:58`) e janeiro (`21:58`), sem exceção em 31 dias. `reports/broker-audit.md`.
 
@@ -243,6 +247,7 @@ Parâmetros `-bs 10 -bp 500` (§10.1). Os CSVs são descartáveis e reconstituí
 
 | Data | Máquina | Relatório |
 |---|---|---|
+| 2026-08-02 | PC-Home | [documento de referência](docs/sessions/2026-08-02-2030-referencia.md) |
 | 2026-08-02 | PC-Home | [foco único em XAUUSDm](docs/sessions/2026-08-02-2000-foco-xauusd.md) |
 | 2026-08-02 | PC-Home | [DataAudit e fechamento da §10.7](docs/sessions/2026-08-02-1930-dataaudit.md) |
 | 2026-08-02 | PC-Home | [auditoria de σ](docs/sessions/2026-08-02-1900-sigma.md) |
