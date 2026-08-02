@@ -11,6 +11,73 @@ import pandas as pd
 GATILHO_PRECO_PCT = 10.0
 GATILHO_MESES = 3
 
+# Fuso do operador. Só para apresentação — nenhum dado do projeto é gravado
+# nele. Verificado no Windows da PC-Home: `Tokyo Standard Time`, UTC+09:00,
+# `SupportsDaylightSavingTime = False`.
+OPERADOR_TZ = "JST"
+OPERADOR_OFFSET_H = 9
+OPERADOR_TEM_DST = False
+
+
+def _para_local(hhmm: str, offset_h: int = OPERADOR_OFFSET_H) -> tuple[str, int]:
+    """Converte `HH:MM` de UTC para o fuso do operador.
+
+    Devolve o horário e quantos dias virou (0 ou +1).
+    """
+    h, m = (int(x) for x in hhmm.split(":"))
+    total = h + offset_h
+    return f"{total % 24:02d}:{m:02d}", total // 24
+
+
+def sec_horario_local() -> list[str]:
+    """Tradução para o fuso do operador. Apresentação, nunca armazenamento."""
+
+    def par(utc: str) -> str:
+        loc, vira = _para_local(utc)
+        return f"{loc}{' (+1d)' if vira else ''}"
+
+    return [
+        "### Em horário local do operador",
+        "",
+        f"**Nada disto entra no dado.** Todo timestamp do projeto é UTC e a conversão acontece",
+        "apenas na borda de apresentação. Esta tabela existe para não agendar as coisas erradas.",
+        "",
+        f"O operador está em **{OPERADOR_TZ} = UTC+{OPERADOR_OFFSET_H}**, e o Japão **não observa",
+        "horário de verão** — o offset é constante o ano inteiro. Mas **a sessão do símbolo desliza",
+        "com o DST americano**, então os horários locais dos eventos mudam uma hora entre as",
+        "estações. As duas coisas são independentes.",
+        "",
+        "| Evento | UTC (verão) | Local (verão) | UTC (inverno) | Local (inverno) |",
+        "|---|---|---|---|---|",
+        f"| Abertura da semana (domingo) | 22:01 | **{par('22:01')} seg** | 23:01 | **{par('23:01')} seg** |",
+        f"| Início da parada diária | 20:58 | {par('20:58')} | 21:58 | {par('21:58')} |",
+        f"| Reabertura diária | 22:00 | {par('22:00')} | 23:00 | {par('23:00')} |",
+        f"| Fechamento de sexta | 20:58 | **{par('20:58')} sáb** | 21:58 | **{par('21:58')} sáb** |",
+        "",
+        "Para quem está no Japão, a semana começa por volta das **07:00 de segunda** e a parada",
+        "diária cai de madrugada para o começo da manhã. Não é preciso estar acordado na virada: o",
+        "`BrokerTickLogger` fica ocioso em laço e retoma sozinho.",
+        "",
+        "### As sessões em horário local",
+        "",
+        "| Sessão | UTC | Local |",
+        "|---|---|---|",
+        f"| Asiático | 00–07 | {_para_local('00:00')[0][:2]}–{_para_local('07:00')[0][:2]} |",
+        f"| Londres | 07–12 | {_para_local('07:00')[0][:2]}–{_para_local('12:00')[0][:2]} |",
+        f"| Sobreposição LDN/NY | 12–16 | {_para_local('12:00')[0][:2]}–{_para_local('16:00')[0][:2]} |",
+        f"| Nova York | 16–21 | {_para_local('16:00')[0][:2]}–{_para_local('21:00')[0][:2]} |",
+        "",
+        "Os dois picos de volatilidade de 2026 caem em horários bem diferentes para o operador: a",
+        f"hora **15 UTC** (a mais volátil) é **{_para_local('15:00')[0]} local**, e a hora **1 UTC**",
+        f"— abertura da Shanghai Gold Exchange, a segunda mais volátil — é **{_para_local('01:00')[0]}",
+        "local**, em plena manhã de dia útil no Japão.",
+        "",
+        "> **Consequência de método, não de conveniência:** se um sensor ou filtro vier a usar hora,",
+        "> ele usa **hora de servidor (UTC)**. Hora local do operador não é propriedade do mercado e",
+        "> não pode entrar em `.mqh` nem em `research/`. Ela existe só nesta tabela.",
+        "",
+    ]
+
 
 def sec_historico(ticks_dia: pd.DataFrame) -> list[str]:
     L = ["## 4. O histórico — `data/raw/`", ""]

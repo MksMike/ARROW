@@ -450,6 +450,7 @@ def main() -> int:
     L += _sec_instrumento(sm, geral)
     L += _sec_spec(sm)
     L += _sec_calendario(sessions, breaks)
+    L += RP.sec_horario_local()
     L += RP.sec_historico(ticks_dia)
     L += RP.sec_custo()
     L += _sec_volatilidade(ys, por_ano, por_hora_recent, ano_ref)
