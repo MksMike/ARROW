@@ -4,7 +4,7 @@
 |---|---|
 | Máquina | PC-Home |
 | Branch | `session/2026-08-02-logger-simbolo` |
-| Commits | `ac3d30a..<encerramento>` |
+| Commits | `ac3d30a..5cc22ae` |
 | Duração | ~10 min |
 
 ## Objetivo declarado
