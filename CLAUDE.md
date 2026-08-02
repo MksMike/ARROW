@@ -821,6 +821,21 @@ pergunta nova. Se uma restrição morder de verdade, a resposta é uma das três
    forma e não de conteúdo.
 2. **"Colide com a pétrea N, e o número é este."** Com o número, conforme a §1.
 3. **"O ADR que atrapalha é o M, e ele deveria mudar"** — seguido do ADR que o supersede.
+4. **Exceção com escopo** (ADR 0011). Um ADR pode estar certo em geral e errado para um
+   componente. A exceção é ela própria um ADR, nomeia o componente, e argumenta **por que a razão
+   de ser do ADR original não se aplica ali**.
+
+   Três condições, e as três são verificáveis:
+
+   - **justificada por mecanismo, nunca por resultado.** *"Funciona muito bem mas viola o ADR N"*
+     é proibido — seria fazer toda regra dobrar na direção do número que apareceu, e número bom
+     aparece por acaso o tempo todo (§7);
+   - **commitada antes da medição que se beneficia dela.** Exceção cujo commit não precede a
+     medição é **nula**, e a medição junto;
+   - **não contorna pétrea.** Exceção vale sobre ADR; a §3 não admite exceção.
+
+   **Três exceções ao mesmo ADR disparam revisão obrigatória dele** — para o ADR 0002, duas.
+   A quarta vez que se contorna a mesma coisa não é caso particular, é padrão.
 
 Só as cláusulas pétreas da §3 recusam. E mesmo elas recusam **construir**, jamais investigar:
 debater por que martingale arruína é trabalho legítimo; construí-lo não é.
