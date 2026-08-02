@@ -15,7 +15,7 @@
 | Branch | `main` — sessão mergeada e pushada |
 | Aberta em | 2026-08-02 |
 | Última atualização | 2026-08-02 |
-| Última sessão | `sigma` |
+| Última sessão | `logger-armado` |
 
 > **Se Status = ABERTA numa máquina diferente da atual:** não iniciar trabalho. Avisar o usuário,
 > mostrar máquina e horário, e perguntar se a sessão foi abandonada. Sessão abandonada é fechada
@@ -25,33 +25,38 @@
 
 ## Em andamento
 
-Nada em execução. O download da Dukascopy terminou e `raw/` está completa.
+Nada em execução no repositório.
 
-**Nada está coletando tick do broker** — ver "Ação que depende do usuário" logo abaixo. É o único
-gargalo da camada de dados, e é o único item cujo custo cresce a cada hora parada.
+**`BrokerTickLogger` está armado em `XAUUSDm` desde 2026-08-02 09:48 UTC** e aguardando a
+abertura do mercado — domingo 22:05 UTC. O gargalo da camada de dados deixou de ser a instalação
+e passou a ser o tempo: `spread/` precisa de amostra acumulada.
 
-## Ação que depende do usuário — urgente
+## Coleta de tick do broker — ARMADA
 
-**`BrokerTickLogger.mq5` compila limpo e ainda não está coletando XAUUSDm.**
+**`BrokerTickLogger.mq5` está rodando em `XAUUSDm` desde 2026-08-02 09:48 UTC**, na versão
+corrigida. Aguarda a abertura de domingo 22:05 UTC (07:05 JST de segunda) para gravar o primeiro
+tick de sessão.
 
-Foi executado em 2026-08-02 08:23 UTC e a execução expôs dois defeitos, ambos corrigidos —
-**o script precisa ser rodado de novo, na versão nova.** Ver "O que aconteceu na primeira
-execução" abaixo.
+**Conferir na manhã seguinte:** `data/broker/XAUUSDm-20260803.csv` deve existir e crescer. O
+arquivo de 2026-08-02 nasce primeiro e vira à meia-noite UTC — os dois são normais, porque o nome
+segue a data UTC do tick e não a local.
+
+Se não aparecer, o script caiu ou foi removido do gráfico; o log do Especialistas diz o motivo.
+
+**A correção da retomada foi exercitada.** O restart de 09:48 aconteceu com o mercado fechado e o
+último arquivo datado de sexta — exatamente o cenário do bug. `XAUUSDm-20260731.csv` continua com
+**uma** linha de dado, não duas. O caminho de retomada com mercado **aberto** segue não testado.
+
+### Histórico: o que a primeira execução expôs
 
 **Se ele não aparecer no Navegador:** o terminal enumera `MQL5\Scripts` na inicialização, e a
 junction `Scripts\ARROW` foi criada em 2026-08-02 07:25 com o terminal já rodando desde 28/07.
 **Reiniciar o MT5** resolve. Os arquivos estão no disco — conferido pelo caminho do terminal.
 
-Para colocar em produção, no MT5 de PC-Home:
-
-1. Abrir um gráfico de **`XAUUSDm`** (qualquer timeframe — o script lê tick, não barra)
-2. Navegador → Scripts → ARROW → arrastar `BrokerTickLogger` para o gráfico
-3. Deixar `InpBackfill = false` na primeira execução; ligar depois, se quiser puxar o histórico
-   ainda retido, sabendo que ele atravessa fronteira de DST em potencial
-4. **Não remover do gráfico.** Confirmar que `data/broker/xauusdm-AAAAMMDD.csv` aparece e cresce
-
-Enquanto isso não acontecer, `spread/`, `curated/` e `bars/` seguem impossíveis, e **cada dia é
-perdido para sempre** — a janela de retenção do broker rola.
+Para reinstalar, se o script cair: Navegador → Scripts → ARROW → arrastar
+`BrokerTickLogger` para qualquer gráfico. O símbolo não depende do gráfico. Deixar
+`InpBackfill = false`; ligar apenas com consciência de que o backfill atravessa fronteira de DST
+em potencial. **Não remover do gráfico** — cada dia não coletado é perdido para sempre.
 
 ### O que aconteceu na primeira execução
 
@@ -91,7 +96,7 @@ pendente, e é justamente ele que distingue um servidor UTC fixo de um que deslo
 | Gate 1 | Escolha de T dentro da faixa de 1 a 30 barras não tem critério — ver nota abaixo |
 | Primeiro sensor | Tese mecânica não escrita (CLAUDE.md §18 passo 3) |
 | Primeiro sensor | Semântica de `confidence` no `SensorOut` não definida (CLAUDE.md §5.2) |
-| Modelo de spread, `curated/`, `bars/` | `BrokerTickLogger` existe e compila, mas não está rodando — sem `broker/` não há modelo |
+| Modelo de spread, `curated/`, `bars/` | `broker/` sem amostra — coleta armada em 2026-08-02, primeiro tick de sessão só em 22:05 UTC |
 | Qualquer conclusão de Gate 2 | Capital inicial e drawdown tolerado não definidos (CLAUDE.md §13) |
 | Calibração de normalização de sensor | precisa de gerador de passeio aleatório calibrado com a σ medida (ADR 0002) |
 
@@ -113,8 +118,8 @@ pendente, e é justamente ele que distingue um servidor UTC fixo de um que deslo
 Enquanto a tese e a semântica de `confidence` não voltarem do chat, o trabalho segue pelo ADR
 0005 e para antes de qualquer sensor.
 
-1. **Colocar o `BrokerTickLogger` em produção** — ver acima. É do usuário, não meu, e agora é o
-   único bloqueio da camada de dados.
+1. **Conferir que a coleta pegou a abertura** (ver acima). Depois disso, só o tempo separa
+   `broker/` de ter amostra para `spread_model.py`.
 2. ~~Auditoria de σ sobre `raw/`~~ — **feita**, ver "Medições feitas" abaixo. Falta a
    **densidade de tick por sessão**, que é o resto do passo 5 da §18.
 3. `DataAudit.mq5`, depois `spread_model.py`, `curate.py`, `bars.py`, `parity.py` +
