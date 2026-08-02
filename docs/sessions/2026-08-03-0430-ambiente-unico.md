@@ -4,7 +4,7 @@
 |---|---|
 | Máquina | PC-Home |
 | Branch | `session/2026-08-03-ambiente-unico` |
-| Commits | `f3d6868..<encerramento>` |
+| Commits | `f3d6868..d9f6eef` |
 | Duração | ~20 min |
 
 ## Objetivo declarado
