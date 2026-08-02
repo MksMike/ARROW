@@ -15,7 +15,7 @@
 | Branch | `main` — sessao mergeada e pushada |
 | Aberta em | 2026-08-02 |
 | Última atualização | 2026-08-03 |
-| Última sessão | `dependencia-tick` |
+| Última sessão | `logger-ea` |
 
 > **Se Status = ABERTA numa máquina diferente da atual:** não iniciar trabalho. Avisar o usuário,
 > mostrar máquina e horário, e perguntar se a sessão foi abandonada. Sessão abandonada é fechada
@@ -31,27 +31,32 @@ Nada em execução no repositório.
 abertura do mercado — domingo 22:05 UTC. O gargalo da camada de dados deixou de ser a instalação
 e passou a ser o tempo: `spread/` precisa de amostra acumulada.
 
-## Coleta de tick do broker — PARADA, e é o item mais urgente
+## Coleta de tick do broker — AÇÃO NECESSÁRIA, UMA VEZ SÓ
 
-**O `BrokerTickLogger` não está coletando.** Morreu em 2026-08-02 19:37 local por colisão de
-Script: o MT5 permite **um Script por gráfico**, e soltar o `DataAudit` no mesmo gráfico do
-`XAUUSDm` desalojou o logger. O log do terminal registra os dois eventos com dois segundos de
-diferença.
+O coletor virou **Expert Advisor** (ADR 0008). Ele morreu duas vezes em 24 h como Script — uma por
+reinício do terminal, outra por colisão com o `DataAudit` no mesmo gráfico. Um EA não tem nenhum
+dos dois problemas.
 
-Nenhum dado foi perdido — o mercado esteve fechado o tempo todo. Mas ele perderia a abertura.
+**Instalar, uma vez:**
 
-**Ação:** reinstalar em um gráfico **dedicado**, que não receba nenhum outro script. Navegador →
-Scripts → ARROW → arrastar `BrokerTickLogger`. O símbolo não depende do gráfico.
+1. Navegador → **Assessores Especialistas** → ARROW → Infra → `EA_BrokerTickLogger`
+2. Arrastar para **um gráfico dedicado** — qualquer símbolo serve, o EA não herda do gráfico
+3. Confirmar no log: `ARROW EA_BrokerTickLogger v1.00: XAUUSDm, digits=3, offset servidor-UTC = 0 s`
+4. Confirmar que a **carinha aparece no canto do gráfico** — é como se sabe que está vivo
 
-> **Script é o artefato errado para coleta contínua**, e por três razões independentes: morre com
-> outro script no mesmo gráfico, não sobrevive a reinício do terminal, e morre se o gráfico mudar
-> de símbolo ou timeframe. Duas das três já aconteceram em 24 h. Um Expert Advisor não tem
-> nenhuma delas. **Conversão é candidata a próxima sessão e exige ADR.**
+A partir daí ele reanexa sozinho a cada reinício do terminal, convive com scripts, e sobrevive à
+troca de símbolo ou timeframe do gráfico. Emite batimento no log a cada 30 min e, se parar,
+**registra o motivo traduzido** — a morte anterior foi silenciosa e isso foi o pior dela.
 
-O mesmo log confirmou que a correção de retomada funciona em produção:
-`retomando ... (1 no mesmo ms)` com zero ticks regravados.
+> **O EA não negocia.** Verificado por busca textual: não contém `OrderSend`, `PositionOpen`,
+> `PositionClose`, `PositionModify`, `CTrade` nem `MqlTradeRequest`. Numa conta com alavancagem
+> 1:2000 e sem proteção do broker, a ausência das chamadas vale mais que qualquer flag.
 
-## Histórico: coleta armada em 2026-08-02
+O Script `Scripts/ARROW/BrokerTickLogger.mq5` foi **removido**. Manter os dois seria pior que
+manter o Script: os dois escrevem no mesmo arquivo do dia, e rodando juntos duplicariam ticks em
+silêncio.
+
+## Histórico: coleta armada em 2026-08-02## Histórico: coleta armada em 2026-08-02
 
 **`BrokerTickLogger.mq5` está rodando em `XAUUSDm` desde 2026-08-02 09:48 UTC**, na versão
 corrigida. Aguarda a abertura de domingo 22:05 UTC (07:05 JST de segunda) para gravar o primeiro
@@ -265,7 +270,7 @@ Parâmetros `-bs 10 -bp 500` (§10.1). Os CSVs são descartáveis e reconstituí
 | Foco único em XAUUSDm | chat, 2026-08-02 | **0007 — escrito** |
 | Exclusão dos feriados do dataset | chat, 2026-08-02 | **0006 — escrito** |
 | Definição de `tick_imb` no ADR 0005 | medição feita — 20,9% dos ticks copiam o sinal | falta debate |
-| `BrokerTickLogger`: Script ou Expert Advisor | incidente de 2026-08-02 | falta debate |
+| ~~`BrokerTickLogger`: Script ou EA~~ | incidente de 2026-08-02 | **0008 — escrito** |
 | Escolha de T dentro da faixa do Gate 1 | não decidido em lugar nenhum | falta debate |
 | Semântica de `confidence` | não decidido em lugar nenhum | falta debate |
 | Tese mecânica do XAUUSD M1 | não decidido em lugar nenhum | falta debate |
@@ -297,6 +302,7 @@ afirmações estão refutadas por medição. `reference_parts.py` precisa de rev
 
 | Data | Máquina | Relatório |
 |---|---|---|
+| 2026-08-03 | PC-Home | [coletor vira EA](docs/sessions/2026-08-03-0330-logger-ea.md) |
 | 2026-08-03 | PC-Home | [dependência em escala de tick](docs/sessions/2026-08-03-0100-dependencia-tick.md) |
 | 2026-08-02 | PC-Home | [documento de referência](docs/sessions/2026-08-02-2030-referencia.md) |
 | 2026-08-02 | PC-Home | [foco único em XAUUSDm](docs/sessions/2026-08-02-2000-foco-xauusd.md) |
