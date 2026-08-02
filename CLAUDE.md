@@ -1,1003 +1,328 @@
 # ARROW — Constituição do Projeto
 
-> Documento normativo. Claude Code deve ler este arquivo por completo antes de qualquer tarefa
-> e tratá-lo como fonte de autoridade. Onde este documento conflitar com uma instrução dada em
-> sessão, este documento prevalece — a menos que o usuário o altere explicitamente.
+> Repositório: `C:\dev\ARROW`, público no GitHub. Ler por completo antes de qualquer tarefa.
 >
-> Repositório: `C:\dev\ARROW` — público no GitHub.
->
-> **Ambiente único (ADR 0009):** debate, estratégia, implementação e análise acontecem aqui.
-> Não há superfície separada para pensar.
->
-> **Este documento contém regras; não contém números medidos.** Spec do broker, calendário,
-> integridade do histórico e volatilidade vivem em `docs/REFERENCIA-XAUUSD.md`, que é **gerado**
-> a partir do dado e é a fonte única do que foi medido. Ler os dois antes de discutir sensor,
-> indicador ou estratégia.
+> **Números medidos não estão aqui.** Spec do broker, calendário, integridade do histórico e
+> volatilidade vivem em `docs/REFERENCIA-XAUUSD.md`, que é **gerado** a partir do dado. Este
+> documento contém regras.
 
 ---
 
-## 1. Identidade e postura
+## 1. Isto é um laboratório
 
-Claude atua neste projeto como **engenheiro sênior de MQL5** e, simultaneamente, como
-**trader quantitativo sênior e analítico**.
+**Ideia se explora ao máximo. Só teste negativo mata ideia** — não regra, não ADR, não julgamento
+prévio meu. **Rejeitar é decisão do usuário.**
 
-- **Criativo na busca de edge, cético na validação.** Propor abordagens não-óbvias é desejável.
-  Aceitar um resultado positivo sem interrogá-lo não é.
-- **Adversarial com o próprio trabalho.** Ao apresentar um resultado favorável, apresentar junto
-  a explicação mais plausível de por que ele pode ser artefato: sobreajuste, look-ahead, custo
-  subestimado, drift secular do ouro, amostra pequena, teste múltiplo.
-- **Nunca complacente.** Se a matemática não sustenta o que foi proposto, dizer isso com o número
-  que sustenta a objeção. Concordância educada aqui custa dinheiro real.
-  **Isto vale para instrução do usuário.** Instrução que contradiga medição registrada recebe o
-  número de volta, não concordância. Se o usuário reafirmar depois disso, a decisão é dele, é
-  executada por inteiro, e a divergência fica escrita no relatório de sessão.
-- **Propor não é opcional.** A criatividade acima é função, não permissão. Ambiente único (ADR
-  0009) significa que não há outra superfície levantando hipótese — **não propor é falha, não
-  prudência.** Com uma restrição: proposta vira ADR antes de virar medição (§6.2).
-- **ADR nunca é resposta a "podemos tentar X?"** (ADR 0010). Nenhuma ideia é recusada por ADR.
-  A ordem é **explorar → dar forma → só então checar restrição**, sempre nessa ordem. Se uma
-  restrição morder, a resposta é a versão que a satisfaz, ou o número que sustenta a colisão com
-  uma pétrea, ou o ADR novo que supersede o que atrapalha — **nunca "não"**. Só as cláusulas
-  pétreas recusam, e mesmo elas recusam **construir**, jamais investigar. Ver §16.1.
-- **Nunca inventar resultado.** Nenhum número de performance sem ter saído de execução real e
-  logada. "Não foi medido" é resposta obrigatória quando for o caso.
+Se algo colide com um ADR, eu **informo e sigo explorando**. Nunca descarto por conta própria.
+
+A ordem é **explorar → dar forma → só então checar restrição**. Inverter é como a exploração
+morre. Se uma restrição morder, a resposta nunca é "não", é uma das quatro:
+
+1. a versão que satisfaz a restrição — quase sempre existe, porque a restrição costuma ser de
+   forma e não de conteúdo;
+2. **"colide com a pétrea N, e o número é este"** — com o número;
+3. **exceção com escopo**: um ADR pode estar certo em geral e errado para um componente. A
+   exceção nomeia o componente, argumenta **por mecanismo e não por resultado**, e é commitada
+   antes da medição que a favorece. Três exceções ao mesmo ADR obrigam a revisá-lo — duas, no
+   caso do ADR 0002;
+4. o ADR novo que supersede o que atrapalha.
+
+**Só as cláusulas pétreas da §3 recusam.** E mesmo elas recusam *construir*, jamais *investigar*.
+
+> **Caso resolvido.** Pedido: *"um sensor que preveja até onde o próximo candle pode chegar"*.
+> Errado responder *"o ADR 0005 congelou as primitivas"* ou *"falta a tese"*. Certo: é função
+> `VOLATILITY` ou `STRUCTURE`; prever alcance é prever dispersão condicional; explorar o que "até
+> onde" significa; achar o mecanismo; **e só então** dar a forma que o contrato exige.
+
+### Postura
+
+- **Criativo na busca de edge, cético na validação.** Propor não é opcional — é função.
+- **Adversarial com o próprio trabalho.** Resultado favorável vem acompanhado da explicação mais
+  plausível de por que pode ser artefato.
+- **Nunca complacente, inclusive com o usuário.** Instrução que contradiga medição registrada
+  recebe o número de volta. Se ele reafirmar, é decisão dele e se executa por inteiro.
+- **Nunca inventar resultado.** Nenhum número sem execução real e logada. "Não foi medido" é
+  resposta obrigatória quando for o caso.
 
 ---
 
 ## 2. Objetivo
 
-Construir uma **máquina que produz e aposenta sensores continuamente** para XAUUSD M1 no
-MetaTrader 5.
+Uma **máquina que produz e aposenta sensores continuamente** para XAUUSD M1 no MetaTrader 5.
+O produto não é uma EA nem um sensor: edge decai, e o ativo durável é o pipeline.
 
-O produto final não é uma EA, nem um sensor. Edge decai: regimes mudam e participantes se
-adaptam. Todo sistema que funciona hoje tem prazo de validade. O ativo durável é o **pipeline de
-pesquisa e validação** — e todo o rigor deste documento existe menos para provar que um sensor
-funciona do que para **detectar rápido quando um parou de funcionar**.
+Três assimetrias que orientam prioridade:
 
-### 2.1 Onde o lucro provavelmente está
-
-Três assimetrias que devem orientar priorização:
-
-1. **O filtro vale mais que o sinal.** O edge quase nunca vem de um gatilho de entrada melhor;
-   vem de **não operar** na maior parte do tempo, quando o sinal não vale nada. Um sensor com
-   2 pp de edge médio pode ter 8 pp num regime e −1 pp no resto. As funções `REGIME` e `COST`
-   não são infraestrutura de apoio — são candidatas a concentrar a maior parte do ganho.
-
-2. **Muitos sensores medíocres batem um sensor excelente.** Sharpe de fontes independentes soma
-   em quadratura: três sensores não correlacionados com Sharpe 1 combinam para √3 ≈ 1,73. Um
-   sensor solitário com Sharpe 1,73 é muito mais difícil de achar e muito mais provável de ser
-   sobreajuste. **Procurar muitos aprovados marginais e pouco correlacionados**, não um
-   espetacular.
-
-3. **A pesquisa não acontece em MQL5.** Ver Seção 6.1.
+1. **O filtro vale mais que o sinal.** O edge vem de *não operar* quando o sinal não vale nada.
+   `REGIME` e `COST` concentram provavelmente a maior parte do ganho.
+2. **Muitos sensores medíocres batem um excelente.** Sharpe de fontes independentes soma em
+   quadratura: três não correlacionados com Sharpe 1 dão √3 ≈ 1,73, e um solitário com 1,73 é
+   muito mais provável de ser sobreajuste.
+3. **A pesquisa acontece em Python, não em MQL5.** MQL5 é linguagem de execução. Nenhum sensor é
+   escrito em MQL5 antes de a hipótese sobreviver a um teste em `research/`.
 
 ---
 
 ## 3. Cláusulas pétreas
 
-Não são preferências. São restrições. Claude Code não deve reabri-las, contorná-las nem propor
-exceções. Se discordar de uma delas, escrever a objeção em `docs/decisions/` e **parar**.
+Restrições, não preferências. Discordância vira ADR e a implementação para.
 
-1. **Fonte única de verdade.** A matemática de um sensor vive em exatamente um `.mqh`. O
-   indicador visual e a EA incluem esse mesmo arquivo. Nenhuma lógica de sensor é reimplementada
-   em outro lugar, por nenhum motivo, inclusive performance.
-
-2. **Sensor não executa.** Gerador puro de sinal. Sem decisão de entrada, gestão de posição,
-   filtro de sessão, checagem de spread, gestão de risco ou chamada de trading.
-
-3. **Determinismo obrigatório.** Nada auto-adaptativo, de aprendizado online, ou dependente de
-   wall-clock em código de backtest ou produção. Dois backtests idênticos produzem resultados
-   idênticos.
-
-4. **Zero repaint, zero look-ahead.** O valor na barra N é fixado no fechamento de N e nunca
-   muda.
-
+1. **Fonte única de verdade.** A matemática de um sensor vive em exatamente um `.mqh`. Indicador e
+   EA incluem esse arquivo. Nunca reimplementada, nem por performance.
+2. **Sensor não executa.** Gerador puro de sinal. Sem decisão de entrada, gestão, filtro de
+   sessão, checagem de spread ou chamada de trading.
+3. **Determinismo.** Nada auto-adaptativo, de aprendizado online, ou dependente de wall-clock em
+   backtest ou produção. Dois backtests idênticos produzem resultados idênticos.
+4. **Zero repaint, zero look-ahead.** O valor da barra N é fixado no fechamento de N.
 5. **Proibição de recuperação por exposição.** Martingale, grid, averaging down, aumento de lote
-   após perda: proibidos sob qualquer nome. Já estressados por Monte Carlo neste contexto —
-   ruína quase certa. Não é assunto aberto.
-
-6. **Edge antes de composição.** Nenhum sensor é combinado, otimizado ou colocado em produção
-   antes de passar os gates isoladamente.
-
-7. **O dia é a unidade estatística.** Trades no M1 são fortemente autocorrelacionados dentro do
-   dia. Significância sempre sobre R agregado por dia.
-
-8. **Custo é premissa.** Todo teste com spread calibrado do broker mais comissão. Nenhum
-   resultado sem custo aplicado é reportado, nem como preliminar.
-
-9. **Win rate não é evidência.** Nenhum sensor, EA ou resultado é avaliado por taxa de acerto.
-   Alvo curto com stop largo produz 85% de acerto e esperança negativa. Apenas esperança em R e
-   t-stat diário contam.
+   após perda — sob qualquer nome. Estressados por Monte Carlo: ruína quase certa.
+6. **Edge antes de composição.** Nada é combinado ou otimizado antes de passar os gates isolado.
+7. **O dia é a unidade estatística.** Trades no M1 são autocorrelacionados dentro do dia.
+   Significância sempre sobre R agregado por dia.
+8. **Custo é premissa.** Todo teste com spread calibrado do broker. Nenhum resultado sem custo é
+   reportado, nem como preliminar.
+9. **Win rate não é evidência.** Alvo curto com stop largo dá 85% de acerto e esperança negativa.
+   Só esperança em R e t-stat diário contam.
 
 ---
 
 ## 4. Arquitetura
 
-Três camadas, com dependência estritamente unidirecional:
-
 ```
 Sensores (.mqh)  →  Registry (função → sensor)  →  Execução (EA)
-    puro                  binding                   ordens, risco, sessão
+    puro                  binding                  ordens, risco, sessão
 ```
 
-Um sensor nunca sabe que uma EA existe. Uma EA nunca sabe qual sensor concreto está usando —
-apenas que preencheu uma função.
-
-### 4.1 Estrutura de diretórios
+Um sensor nunca sabe que uma EA existe. Uma EA nunca sabe qual sensor concreto está usando.
 
 ```
-C:\dev\ARROW\
-├── CLAUDE.md
-├── STATE.md
-├── README.md
-├── docs/
-│   ├── REFERENCIA-XAUUSD.md       # GERADO — fonte única de tudo que foi medido
-│   ├── decisions/                 # ADRs — NNNN-slug.md
-│   ├── sessions/                  # relatórios de sessão (imutáveis)
-│   ├── sensors/                   # ficha + veredicto (inclusive reprovados)
-│   └── templates/
-├── research/                      # Python — onde a pesquisa realmente acontece
-│   ├── notebooks/
-│   ├── lib/                       # carregamento, custos, bootstrap, IC
-│   └── findings/                  # resultado de cada hipótese testada
-├── MQL5/
-│   ├── Include/ARROW/
-│   │   ├── Core/                  # tipos, normalização, logging, utilidades
-│   │   ├── Sensors/               # *.mqh — a matemática dos sensores
-│   │   ├── Registry/              # mapeamento função → implementação
-│   │   └── Execution/             # ordens, risco, sessão, filtros
-│   ├── Indicators/ARROW/          # cascas visuais (finas)
-│   ├── Experts/ARROW/
-│   │   ├── Harness/               # EA de teste isolado, um por sensor
-│   │   ├── Infra/                 # EAs de infraestrutura que NAO negociam (ADR 0008)
-│   │   └── Live/                  # EAs orquestradoras
-│   └── Scripts/ARROW/             # importação de ticks, auditoria, utilitários
-├── tools/
-│   ├── analysis/
-│   └── setup/                     # junctions, ambiente (por máquina) — ver §12
-├── reports/                       # saídas de teste, versionadas
-└── data/                          # NUNCA versionado
-    ├── dukascopy/                 # download bruto
-    ├── raw/                       # ticks normalizados — IMUTÁVEL
-    ├── spread/                    # modelo de spread do broker, por bucket
-    ├── broker/                    # ticks reais da Exness (verdade de campo)
-    ├── curated/                   # raw + spread do broker + máscara de sessão
-    └── bars/                      # M1 OHLC + estatísticas por barra
+docs/           decisions/  sensors/  templates/  REFERENCIA-XAUUSD.md (gerado)
+research/       lib/  findings/  notebooks/          ← a pesquisa acontece aqui
+MQL5/           Include/ARROW/{Core,Sensors,Registry,Execution}
+                Indicators/ARROW/  Experts/ARROW/{Harness,Infra,Live}  Scripts/ARROW/
+tools/setup/    junctions.ps1, local_paths.ps1 (não versionado)
+reports/        saídas de teste, versionadas
+data/           NUNCA versionado — dukascopy/ raw/ spread/ broker/ curated/ bars/
 ```
-
-### 4.2 Nomenclatura
 
 | Artefato | Padrão |
 |---|---|
 | Core do sensor | `Include/ARROW/Sensors/SNS_<FUNC>_<Nome>.mqh` |
-| Indicador visual | `Indicators/ARROW/IND_SNS_<FUNC>_<Nome>.mq5` |
+| Indicador | `Indicators/ARROW/IND_SNS_<FUNC>_<Nome>.mq5` |
 | Harness | `Experts/ARROW/Harness/HRN_SNS_<FUNC>_<Nome>.mq5` |
 | EA de produção | `Experts/ARROW/Live/EA_<Nome>_v<Maj>.<Min>.mq5` |
+| EA que não negocia | `Experts/ARROW/Infra/EA_<Nome>.mq5` |
 | Ficha do sensor | `docs/sensors/SNS_<FUNC>_<Nome>.md` |
-| Achado de pesquisa | `research/findings/AAAA-MM-DD-<slug>.md` |
+| Achado | `research/findings/AAAA-MM-DD-<slug>.md` |
 
-Identificadores de código em inglês. Documentação e comentários em português.
+Identificadores em inglês; documentação e comentários em português.
 
 ---
 
-## 5. Contrato do Sensor
+## 5. Contrato do sensor
 
-### 5.1 Funções
+Toda EA se liga a uma **função**, nunca a um sensor concreto. Trocar sensor é alterar uma linha no
+Registry.
 
-Toda EA se liga a uma **função**, nunca a um sensor concreto. Trocar sensor deve ser a alteração
-de uma linha no Registry.
-
-| Função | Responde a |
-|---|---|
-| `REGIME` | O mercado está direcional ou lateral? |
-| `DIRECTION` | Qual o viés direcional? |
-| `MOMENTUM` | Há força ou aceleração no movimento? |
-| `VOLATILITY` | A volatilidade está comprimida ou expandida? |
-| `EXHAUSTION` | O movimento está sobre-estendido? |
-| `STRUCTURE` | Onde estão níveis, rompimentos, referências? |
-| `COST` | Spread, liquidez e horário permitem operar agora? |
+`REGIME` · `DIRECTION` · `MOMENTUM` · `VOLATILITY` · `EXHAUSTION` · `STRUCTURE` · `COST`
 
 Novas funções exigem ADR. Sensores da mesma função são drop-in entre si.
-
-### 5.2 Saída
 
 ```mql5
 struct SensorOut
 {
    double   value;        // sinal normalizado, adimensional
    double   confidence;   // [0.0, 1.0]
-   bool     valid;        // false durante warm-up ou dados insuficientes
+   bool     valid;        // false durante warm-up
    datetime bar_time;     // barra FECHADA a que o valor se refere
 };
 ```
 
-**Regra de normalização (inegociável):** `value` é adimensional e calibrado contra a hipótese
-nula. Sob passeio aleatório com a volatilidade própria do instrumento, um sensor com sinal deve
-ter `E[value] = 0` e `SD[value] = 1`. Sensores de razão ou magnitude devem ser transformados
-para essa escala.
+**Normalização (ADR 0002):** `value` é adimensional e calibrado contra a hipótese nula. Sob
+passeio aleatório com a volatilidade do instrumento, `E[value] = 0` e `SD[value] = 1`. Sem escala
+comum, sensores da mesma função não são intercambiáveis e limiares não transferem — foi o defeito
+do `val` do Squeeze Momentum, em unidades de preço, e da sua razão de compressão, que escalava
+com √N.
 
-Sem escala comum, sensores da mesma função não são intercambiáveis e limiares não são
-transferíveis. Um valor em unidades de preço escala com σ e não significa nada de forma estável
-— defeito diagnosticado no `val` do Squeeze Momentum, cuja razão de compressão ainda por cima
-escala com √N.
+Todo core documenta no cabeçalho: distribuição sob o nulo, constante de normalização, e como ela
+foi obtida.
 
-Todo core deve documentar no cabeçalho: a distribuição sob o nulo, a constante de normalização e
-como ela foi obtida.
+> **`confidence` não tem semântica definida.** Nenhum código deve escrever nele, ler dele ou
+> ramificar sobre ele até isso ser decidido — o primeiro uso vira precedente por acidente.
 
-> **`confidence` não tem semântica definida.** O campo está no contrato, mas nenhum documento diz
-> o que o número mede, como é calculado, nem o que a camada de execução faz com ele. O primeiro
-> sensor a preencher esse campo estabelece precedente por acidente. Pendência registrada em
-> `STATE.md`; é debate de chat.
-
-### 5.3 Proibido dentro de um sensor
-
-- Gate, threshold binário ou filtro que descarte informação — o sensor entrega o valor cru
-  normalizado; quem decide corte é a camada de execução
-- Estado dependente de ordem de chamada ou de wall-clock
-- Chamadas de trading, leitura de sessão, spread ou conta
-- `Print` fora do canal de logging padronizado
+**Proibido dentro de um sensor:** gate ou threshold que descarte informação (o corte é da camada
+de execução); estado dependente de ordem de chamada ou wall-clock; chamada de trading; leitura de
+sessão, spread ou conta; `Print` fora do canal padronizado.
 
 ---
 
-## 6. Ciclo de vida de um sensor
+## 6. Ciclo de vida
 
-A ordem é normativa. Nenhuma etapa pode ser pulada.
+1. **Hipótese** → ADR em `docs/decisions/`: qual desequilíbrio se acredita existir, por que
+   produziria retorno previsível, e **qual observação o falsificaria**. Fórmula sem mecanismo é
+   fórmula procurando emprego.
 
-### 6.1 A pesquisa acontece em Python, não em MQL5
+   **O ADR é commitado antes do commit que introduz o código que o mede.** A ordem é verificável
+   no git; medição cujo pré-registro não a precede **não conta**. Duas frases dizendo por que a
+   hipótese provavelmente está errada — sem segunda superfície para objetar, a objeção é
+   fabricada de propósito.
 
-**MQL5 é linguagem de execução, não de descoberta.** Construir `.mqh` + indicador + harness +
-Strategy Tester para testar uma ideia custa horas. A mesma hipótese em pandas custa vinte
-minutos e vinte linhas.
-
-Consequência normativa: **nenhum sensor é escrito em MQL5 antes de a hipótese sobreviver a um
-teste em `research/`.** Isso multiplica a taxa de iteração e, contraintuitivamente, reduz o
-sobreajuste — porque passa a testar hipóteses em vez de ajustar parâmetros.
-
-Todo teste em `research/` produz um arquivo em `research/findings/`, inclusive os que refutam.
-
-### 6.2 Etapas
-
-1. **Hipótese mecânica** — ADR em `docs/decisions/`: qual desequilíbrio se acredita existir, por
-   que ele deveria produzir retorno previsível, e qual observação o falsificaria. Uma fórmula sem
-   mecanismo é uma fórmula procurando emprego.
-
-   **O ADR tem de estar commitado ANTES do commit que introduz o código que o mede** (ADR 0009).
-   A ordem é verificável no histórico do git. Medição cujo pré-registro não a precede **não
-   conta**, e o relatório de sessão diz isso em vez de omitir.
-
-   O ADR contém uma seção **"Por que isto provavelmente está errado"** com o argumento mais forte
-   contra a própria hipótese — a alternativa concreta que explicaria a mesma observação sem que
-   ela seja verdadeira. Sem segunda superfície para objetar, a objeção é fabricada de propósito.
-   Seção adversarial fraca significa que a hipótese não foi testada, só aprovada de bom humor.
-2. **Teste barato em `research/`** — Python, sobre dados exportados. Se não sobreviver, para aqui
-   e vira um `finding` negativo.
-3. **Core** — `SNS_<FUNC>_<Nome>.mqh`, normalização calibrada e documentada.
-4. **Indicador** — casca visual fina, sem lógica própria.
-5. **Harness** — EA mínima: um sensor, stop e alvo em múltiplos de ATR, sem filtros, sem sessão,
-   sem gestão. Mede o sensor, não constrói estratégia.
-6. **Baseline aleatório** — executado **antes**, mesmo período, mesma contagem de trades, mesma
-   distribuição de holding. É a régua.
-7. **Gates 0 a 3** — Seção 7.
-8. **Veredicto** — `docs/sensors/<nome>.md`, para aprovados e reprovados.
+2. **Teste barato em `research/`** — Python. Se não sobreviver, vira `finding` negativo e para.
+3. **Core** `.mqh` com normalização calibrada.
+4. **Indicador**, casca visual fina, sem lógica própria.
+5. **Harness** — EA mínima: um sensor, stop e alvo em múltiplos de ATR, sem filtro nem sessão.
+6. **Baseline aleatório** — executado **antes**, mesmo período, mesma contagem de trades. É a régua.
+7. **Gates 0 a 4.**
+8. **Veredicto** em `docs/sensors/`, para aprovados e reprovados.
 9. **Produção ou arquivo.** Nunca deletar um reprovado.
 
----
-
-## 7. Gates de aceitação e critério de kill
-
-Escritos antes de medir. Alterar um limiar depois de ver o resultado invalida o teste e exige
-nova amostra.
-
-### Gate 0 — Sanidade (binário, eliminatório)
-
-- Determinismo verificado por hash de dois recálculos
-- Zero repaint: valor da barra N não muda após o fechamento de N
-- Sem look-ahead
-- Warm-up declarado, com `valid=false` antes dele
-- Compila sem warnings
-- **Paridade Python ↔ MQL5:** a série do sensor em MQL5, despejada sobre o mesmo período, bate
-  com a série de pesquisa em Python dentro de `1e-9` relativo, barra a barra. Contagem de barras
-  e conjunto de barras inválidas devem coincidir exatamente. Comparar P&L não substitui — curva
-  parecida pode esconder lógica divergente, e não diz onde.
-
-Falha aqui = sensor morto imediatamente.
-
-### Gate 1 — Conteúdo informacional (sem execução)
-
-- Coeficiente de informação (Spearman) entre `value` e o retorno futuro no horizonte T
-- **T avaliado condicionado à sessão**, nunca como valor único global. Faixa: 1 a 30 barras M1
-
-> **Como T é escolhido dentro da faixa continua em aberto.** "1 a 30 barras" delimita onde
-> procurar; não diz qual T usar nem por quê. A revisão de 2026-08-02 removeu a derivação
-> `T_min = (c/kσ)²` sem substituí-la, e a pergunta que ela fazia — em que horizonte o IC deve ser
-> medido, dado que o custo é pago na entrada — segue sem resposta. Varrer os 30 valores e ficar
-> com o melhor é teste múltiplo disfarçado de metodologia. Pendência registrada em `STATE.md`;
-> volta do chat como ADR.
-- Monotonicidade por decil, não apenas nas caudas
-- Significância por **block bootstrap com blocos de um dia**, ≥ 1000 reamostragens
-- **Aprovação:** limite inferior do IC no intervalo de 95% afastado de zero, no sinal esperado
-- Sensor cujo IC só sobrevive num T específico, ou numa única sessão sem razão mecânica, é
-  tratado como reprovado até prova em contrário
-
-### Gate 2 — Execução (harness)
-
-- Custos reais aplicados: spread calibrado por bucket + comissão
-- Comparação obrigatória contra o baseline aleatório
-- **Aprovação exige todos:**
-  - Esperança em R > 0 após custos
-  - t-stat ≥ 2,0 sobre R **agregado por dia**
-  - Esperança > 0 para long e para short **independentemente**
-  - N ≥ 250 dias de negociação
-  - Walk-forward: parâmetros fixados in-sample, avaliados em bloco out-of-sample nunca tocado
-
-### Gate 3 — Contribuição marginal ao portfólio
-
-Um sensor não é avaliado sozinho depois que existe um portfólio. O que importa é o que ele
-**acrescenta**.
-
-- Correlação do R diário do sensor com o R diário de cada sensor já aprovado
-- **Aprovação:** o sensor deve elevar o Sharpe do portfólio combinado, não apenas ter Sharpe
-  positivo isolado
-- Um sensor com t=2,2 e correlação 0,1 vale mais que um com t=3,0 e correlação 0,8. Preferir o
-  primeiro explicitamente.
-- Correlação acima de 0,7 com um sensor existente da mesma função: escolher um dos dois, não
-  ambos
-
-### Gate 4 — Forward em demo
-
-Backtest não é evidência suficiente. Execução a mercado introduz slippage e alargamento de
-spread exatamente quando o sinal dispara, e o símbolo customizado não reproduz o comportamento
-de execução do broker.
-
-- Forward test em conta demo do broker real, mínimo 60 dias de negociação
-- **O gap entre backtest e forward é ele próprio uma medição obrigatória** — entra como número
-  no relatório, nunca como impressão
-- Gap de esperança acima de 30% em R exige investigação antes de qualquer capital real
-
-### Correção para testes múltiplos
-
-- Todo sensor testado é registrado em `docs/sensors/`, **inclusive os reprovados**
-- **Toda hipótese testada é registrada em `research/findings/`, inclusive as refutadas**, e a
-  contagem acumulada aparece em `STATE.md`. Com ambiente único (ADR 0009) as hipóteses passam a
-  ser geradas aqui, então **o problema de teste múltiplo piora e não melhora** — a contagem é
-  insumo da correção, não curiosidade
-- Máximo de **3 iterações de parâmetro** por sensor — a quarta é p-hacking
-- Sensor destinado a produção: **t-stat ≥ 3,0**
-
-### Kill
-
-Reprovado após 3 iterações — arquivado com o registro completo. Não é deletado e não volta a ser
-testado sem **hipótese nova escrita** — mecanismo diferente, não parâmetro diferente.
-
-### Re-teste periódico
-
-Edge decai. Todo sensor em produção é reavaliado trimestralmente contra os Gates 2 e 3 sobre
-dados novos. Queda de t-stat abaixo de 2,0 em dois trimestres consecutivos = aposentadoria.
+**Sonda × hipótese.** Sonda é medição exploratória: rápida, sem pré-registro, sem subagente — e
+**não vale como evidência**. Hipótese exige o caminho acima. Todo resultado **citado** para
+justificar decisão vira hipótese retroativamente, mesmo nascendo sonda.
 
 ---
 
-## 8. O que "lucrativo" significa
+## 7. Gates
 
-Raciocinar em R por mês, nunca em dólares. Exemplo trabalhado com números ilustrativos:
+Escritos antes de medir. Alterar limiar depois de ver o resultado invalida o teste.
 
-| Componente | Valor |
-|---|---|
-| Esperança líquida por trade | +0,05R |
-| Trades por dia | 10 |
-| Dias por mês | 20 |
-| **Acumulação mensal** | **+10R** |
-| Desvio-padrão diário (a medir) | ~2,5R |
-| Desvio-padrão mensal | ~11R |
+**Gate 0 — sanidade (eliminatório).** Determinismo por hash de dois recálculos · zero repaint ·
+sem look-ahead · warm-up declarado com `valid=false` antes dele · compila sem warnings ·
+**paridade Python ↔ MQL5** barra a barra dentro de `1e-9` relativo, com contagem de barras e
+conjunto de inválidas coincidindo. Comparar P&L não substitui: curva parecida esconde lógica
+divergente e não diz onde.
 
-Consequências que precisam estar internalizadas antes de operar:
+**Gate 1 — conteúdo informacional, sem execução.** IC de Spearman entre `value` e o retorno
+futuro no horizonte T · T condicionado à sessão, faixa de 1 a 30 barras M1 · monotonicidade por
+decil · block bootstrap com blocos de um dia, ≥1000 reamostragens · **aprovação:** limite inferior
+do IC a 95% afastado de zero, no sinal esperado.
 
-- Sharpe mensal ≈ 0,9. **Cerca de um mês em cinco é negativo mesmo com o edge sendo real.**
-  Essa é a causa mais comum de destruição de sistemas válidos: desligar no pior momento.
-- O retorno percentual é `10R × (risco por trade em %)`. Abaixo de certo capital, isto é um
-  projeto de pesquisa com P&L simbólico — o que é legítimo, mas precisa ser escolha consciente.
-- O desvio-padrão diário acima é **estimativa**. Deve ser medido e substituído.
+> **Como T é escolhido dentro da faixa continua em aberto.** Varrer os 30 e ficar com o melhor é
+> teste múltiplo disfarçado de metodologia.
 
----
+**Gate 2 — execução (harness).** Custos reais por bucket · comparação obrigatória contra o
+baseline aleatório · **exige todos:** esperança em R > 0 após custos; t-stat ≥ 2,0 sobre R
+agregado por dia; esperança > 0 para long **e** short independentemente; N ≥ 250 dias;
+walk-forward com parâmetros fixados in-sample e bloco out-of-sample nunca tocado.
 
-## 9. Logging e registro
+**Gate 3 — contribuição marginal.** O que importa é o que o sensor **acrescenta**: ele deve
+elevar o Sharpe do portfólio, não só ter Sharpe positivo isolado. Um com t=2,2 e correlação 0,1
+vale mais que um com t=3,0 e correlação 0,8. Correlação acima de 0,7 com sensor existente da mesma
+função: escolher um dos dois.
 
-Schema fixo — contrato entre a camada MQL5 e as ferramentas de análise em Python.
+**Gate 4 — forward em demo.** Mínimo 60 dias de negociação em conta demo real. **O gap entre
+backtest e forward é medição obrigatória**, não impressão. Gap acima de 30% em R exige
+investigação antes de capital real.
 
-### 9.1 `trades.csv`
+**Testes múltiplos.** Todo sensor testado é registrado em `docs/sensors/`, **inclusive
+reprovados**. Toda hipótese testada vai para `research/findings/`, **inclusive refutadas**, com
+contagem acumulada em `STATE.md`. Máximo de 3 iterações de parâmetro por sensor — a quarta é
+p-hacking. Sensor de produção: **t-stat ≥ 3,0**.
 
-```
-trade_id, run_id, sensor_set, open_time_utc, close_time_utc, direction,
-entry_price, exit_price, sl_price, tp_price, atr_at_entry,
-spread_entry_points, commission, slippage_points,
-r_realized, mae_r, mfe_r, bars_held, exit_reason, session, sensor_values_json
-```
+**Kill.** Reprovado após 3 iterações é arquivado com o registro. Não volta sem **hipótese nova
+escrita** — mecanismo diferente, não parâmetro diferente.
 
-### 9.2 `signals.csv`
-
-Toda decisão **e toda rejeição**, com os valores exatos que a causaram:
-
-```
-bar_time_utc, sensor_name, value, confidence, valid,
-decision, reject_reason, spread_points, atr, equity
-```
-
-`reject_reason` é obrigatório e específico. "Filtro bloqueou" não é razão;
-`SPREAD_ABOVE_CAP: spread=47 cap=30` é. Diagnosticar por que uma EA não operou deve ser leitura
-de CSV, nunca reexecução com prints.
-
-### 9.3 `run_meta.json`
-
-`run_id`, símbolo, período, modelo de execução do tester, dataset (tick real ou M1 OHLC), commit
-hash, todos os inputs. Sem isso o resultado não é reproduzível e não conta.
+**Re-teste.** Todo sensor em produção é reavaliado trimestralmente contra os Gates 2 e 3 sobre
+dados novos. t-stat abaixo de 2,0 em dois trimestres consecutivos = aposentadoria.
 
 ---
 
-## 10. Dados
+## 8. Dados — as convenções que causam divergência silenciosa
 
-### 10.1 Requisito de amostra
+Camadas: `dukascopy/ → raw/ → curated/ → bars/`, com `spread/ ← broker/`. `raw/` é **imutável**;
+toda transformação produz camada nova com código versionado e semente registrada.
 
-Gate 2 exige N ≥ 250 dias de negociação **e** um bloco out-of-sample nunca tocado. Um ano
-(~255 dias) não satisfaz os dois — daria ~178 in-sample e ~77 OOS, ambos abaixo do mínimo.
+- **Bid, nunca mid, nunca ask.** O MT5 plota bid (medido: `SYMBOL_CHART_MODE = Bid`), então
+  `iClose()` é bid. Pesquisar em mid cria offset de meio spread entre Python e MQL5, e a paridade
+  do Gate 0 quebra sem causa aparente. Spread entra só na camada de custo.
+- **UTC em todo lugar**, conversão só na borda de apresentação. Barra rotulada pelo minuto de
+  abertura. Servidor = UTC, relógio fixo — **mas a sessão do símbolo desliza com o DST americano**
+  (`research/lib/sessions.py`). A máscara já esteve errada três vezes.
+- **Existência de barra:** uma barra M1 existe se e somente se ≥1 tick ocorreu no minuto,
+  replicando o MT5. Não preencher minutos vazios — preenchimento que o MT5 não faz desloca todos
+  os índices seguintes.
+- **Feriados excluídos de `curated/`** por calendário **declarado por regra**, nunca inferido do
+  dado: feriado e buraco de coleta se parecem, e excluir todo dia magro faria o buraco sumir em
+  silêncio (ADR 0006).
+- **Cálculo incremental obrigatório.** Feature sem forma incremental de estado limitado em
+  `OnCalculate` não vira sensor — vira achado em `research/findings/` e para aí. Quantil sobre
+  histórico inteiro, ranking global e `expanding()` são triviais em pandas e impossíveis ou
+  look-ahead em MQL5.
+- **`bars/`:** as sete primitivas que não dependem de spread saem de `raw/` direto; `spread_p50` e
+  `spread_p95` ficam nulas até `spread/` existir (ADR 0005, emendado pelo 0010). O Gate 1 é "sem
+  execução" e nunca exigiu spread.
 
-- **Mínimo absoluto:** 2 anos (~510 dias) — 1 fold + OOS
-- **Padrão do projeto:** 4 anos (~1.020 dias) — 3 folds + OOS final com folga
-- **Teto:** não ir além de ~2020. Densidade de tick, nível de preço e participantes do ouro em
-  2010 não representam o mercado a ser operado; dado antigo demais é ativamente enganoso para
-  pesquisa de M1.
+**O que NÃO transplanta da Dukascopy:** o spread (ECN bruto contra Standard com markup —
+descartado integralmente) e a execução (só o Gate 4 mede). O caminho de preço transplanta.
 
-Aquisição, para reprodutibilidade:
+**Logging — schema fixo, contrato entre MQL5 e Python:**
 
 ```
-npx dukascopy-node -i xauusd -from AAAA-08-01 -to AAAA-08-01 -t tick -f csv \
-  -v -ch -bs 10 -bp 500 -dir "C:\dev\ARROW\data\dukascopy"
+trades.csv   trade_id, run_id, sensor_set, open_time_utc, close_time_utc, direction,
+             entry_price, exit_price, sl_price, tp_price, atr_at_entry,
+             spread_entry_points, commission, slippage_points,
+             r_realized, mae_r, mfe_r, bars_held, exit_reason, session, sensor_values_json
+signals.csv  bar_time_utc, sensor_name, value, confidence, valid,
+             decision, reject_reason, spread_points, atr, equity
+run_meta.json  run_id, símbolo, período, modelo do tester, dataset, commit hash, todos os inputs
 ```
 
-Um ano por segmento, os quatro segmentos encadeados numa corrida só, **do ano mais recente para
-o mais antigo**: 2025 → 2024 → 2023 → 2022. A ordem não é estética — ela libera `loader.py` e a
-auditoria sobre o ano mais representativo enquanto o resto ainda baixa, em vez de deixar todo o
-pipeline esperando o download inteiro.
-
-`-ch` é obrigatório: sem cache, falha no meio recomeça do zero.
-
-### 10.2 Camadas de dado
-
-```
-dukascopy/  →  raw/  →  curated/  →  bars/
-                  ↑
-              spread/  ←  broker/
-```
-
-| Camada | Conteúdo | Regra |
-|---|---|---|
-| `dukascopy/` | download bruto, CSV | descartável, reconstituível |
-| `raw/` | ticks normalizados em Parquet particionado por mês | **IMUTÁVEL — nunca editado** |
-| `broker/` | ticks reais da Exness | verdade de campo, acumula continuamente |
-| `spread/` | distribuição de spread por bucket | derivado de `broker/` |
-| `curated/` | `raw/` + spread do broker + máscara de sessão | pronto para teste |
-| `bars/` | M1 OHLC + estatísticas por barra | derivado de `curated/` |
-
-`raw/` é imutável por princípio. Toda transformação produz camada nova, com código versionado e
-semente registrada. Um resultado questionado seis meses depois deve ser reconstituível byte a
-byte.
-
-Conversão para **Parquet particionado por mês** é obrigatória logo após o download. CSV de vários
-GB inviabiliza `pd.read_csv` e torna toda iteração lenta.
-
-### 10.3 Convenções que causam divergência silenciosa
-
-- **Bid, não mid, não ask.** Todo `bars/` e todo insumo de sensor é construído em bid. O MT5
-  plota bid no `XAUUSDm`, então `iClose()` e todo OHLC no MetaTrader são bid — pesquisar em mid
-  criaria offset sistemático de meio spread entre Python e MQL5. Spread entra apenas na camada de
-  custo e execução.
-- **Existência de barra:** uma barra M1 existe se e somente se ao menos um tick ocorreu naquele
-  minuto, replicando o MT5. Não preencher minutos vazios em Python — preenchimento que o MT5 não
-  faz desloca todos os índices seguintes.
-- **Cálculo incremental obrigatório:** toda feature usada em pesquisa precisa ter caminho
-  incremental em MQL5 especificado antes de virar sensor. Quantil sobre histórico inteiro,
-  ranking global e `expanding()` são triviais em pandas e impossíveis ou look-ahead em
-  `OnCalculate`. Feature sem forma incremental de estado limitado permanece achado em
-  `research/findings/` e não vira sensor.
-
-### 10.4 O que transplanta e o que não
-
-| Elemento | Transplanta? |
-|---|---|
-| Caminho do preço | **Sim.** Ouro é ouro; os feeds diferem por centavos, não por trajetória |
-| Spread | **Não.** Dukascopy é ECN bruto; a conta é Standard com markup. Descartar integralmente |
-| Densidade de tick | Parcial — medir, não presumir |
-| Execução (slippage, alargamento no disparo) | **Não, e não pode.** Só o Gate 4 mede |
-
-Como o spread é a totalidade do custo nesta conta, usar o spread da Dukascopy produziria
-backtest fantasioso. Não é um refinamento — é a diferença entre um sistema lucrativo e um que
-não existe.
-
-### 10.5 Modelo de spread do broker
-
-Modelado como **distribuição condicional**, `P(spread | bucket de hora, faixa de volatilidade)`,
-nunca como média. A cauda importa mais que o centro: spreads alargam exatamente quando o sinal
-dispara.
-
-**Resolução do conflito com a cláusula pétrea 3:** amostrar de uma distribuição seria
-não-determinístico. Portanto a aleatoriedade acontece **uma vez só, na construção de
-`curated/`**, com semente registrada em `run_meta.json`. Depois disso é dado. Determinístico,
-reproduzível e distributivamente realista ao mesmo tempo.
-
-O modelo depende inteiramente de `broker/`, e o broker retém pouco histórico de tick. A coleta
-contínua de ticks reais deve começar **imediatamente** e rodar sem interrupção — cada dia não
-coletado é verdade de campo perdida para sempre.
-
-### 10.6 Máscara de sessão
-
-A Dukascopy negocia nos horários dela; a Exness tem intervalo diário e fecha sexta mais cedo.
-**Ticks fora das sessões da Exness devem ser removidos em `curated/`.** Sem isso, o backtest
-opera em janelas onde não haveria execução possível, e o resultado infla em silêncio — as bordas
-são justamente onde o preço se move sem que se possa reagir.
-
-**As sessões do símbolo estão em `docs/REFERENCIA-XAUUSD.md`**, lidas do servidor, com a regra de
-deslocamento por DST. Implementadas em `research/lib/sessions.py`.
-
-A regra normativa aqui é uma só: **ticks fora da sessão de negociação são removidos em
-`curated/`**, e a máscara nunca pode tratar as bordas como constantes do ano inteiro.
-
-### 10.7 Fuso — CONFIRMADO
-
-**Servidor = UTC, relógio fixo.** Medido em duas estações; evidência e método em
-`docs/REFERENCIA-XAUUSD.md`.
-
-Duas consequências, e confundi-las custa caro:
-
-1. **O alinhamento com a Dukascopy é por constante**, não por data. As duas são UTC.
-2. **Mas a sessão configurada do símbolo desliza com o DST americano.** Tratar as bordas como
-   fixas descarta uma hora de negociação real por dia durante o inverno.
-
-Todo timestamp interno em UTC; conversão apenas na borda.
-
-### 10.8 Símbolo customizado no MT5
-
-Necessário **apenas** para a fase do Strategy Tester. A pesquisa em `research/` não depende dele.
-
-- `CustomSymbolCreate(nome, caminho, "XAUUSDm")` para herdar tick value, digits e contract size
-- **Sessões não são clonadas** — exigem `CustomSymbolSetSessionQuote` e
-  `CustomSymbolSetSessionTrade` explícitos
-- Importação por script MQL5 com `CustomTicksReplace`, nunca pela GUI
-- Preencher `time_msc` e flags `TICK_FLAG_BID|TICK_FLAG_ASK`; array crescente
-- Validar tick value: 1 lote, movimento de $1 = $100
+`reject_reason` é obrigatório e específico: `SPREAD_ABOVE_CAP: spread=47 cap=30`, não "filtro
+bloqueou". Diagnosticar por que uma EA não operou é leitura de CSV, nunca reexecução com prints.
 
 ---
 
-## 11. Arquitetura de testes
-
-Quatro camadas. A terceira não é o que parece.
-
-| # | Camada | Onde | Mede |
-|---|---|---|---|
-| 1 | Pesquisa | Python sobre `bars/` | IC, monotonicidade, bootstrap |
-| 2 | Simulação de execução | Python sobre `curated/` | Esperança em R com spread real |
-| 3 | Strategy Tester | MT5, símbolo customizado | **Consistência da implementação** |
-| 4 | Forward | Demo do broker real | Execução |
-
-### 11.1 O papel do Strategy Tester
-
-A função principal do backtest no MT5 **não é descobrir se o sensor funciona** — isso já foi
-respondido nas camadas 1 e 2, mais rápido e mais barato. A função é **provar que o código MQL5
-faz o que o Python disse que faz**.
-
-Se o Python deu +0,05R e o MT5 dá +0,05R sobre o mesmo dado, a implementação está correta. Se
-divergem, há bug — e o bug é a descoberta, não o resultado.
-
-Consequência: divergência entre camada 2 e camada 3 é tratada como **defeito a investigar**,
-nunca como "o tester está mais certo".
-
-### 11.2 Os três gaps
-
-Um "gap de fidelidade" único não diz o que consertar. São três, medidos separadamente:
-
-| Gap | Compara | Isola |
-|---|---|---|
-| **Fonte** | Dukascopy vs Exness, mesmo modelo de spread | O feed de preço difere? |
-| **Resolução** | Tick real vs M1 OHLC, mesma fonte | Simular tick vale a pena? |
-| **Execução** | Backtest vs forward demo | Quanto custa slippage? |
-
-Cada um é um número obrigatório no relatório do sensor. Gap de execução acima de 30% em R exige
-investigação antes de qualquer capital real.
-
----
-
-## 12. Infraestrutura multi-máquina
-
-| Máquina | Papel |
-|---|---|
-| PC-Home | Base. Dev completo, MT5, compilação, Strategy Tester |
-| PC-Escritório | Dev e compilação |
-| Laptop | Dev e compilação |
-| S23 Ultra | Somente leitura e revisão — não compila MQL5 |
-
-O nome da máquina **não é derivável do hostname** e não pode ser adivinhado. É declarado em
-`tools/setup/local_paths.ps1`, não versionado, junto do caminho do terminal e do `metaeditor64`.
-
-### Junctions
-
-O caminho do MQL5 é `%APPDATA%\MetaQuotes\Terminal\<GUID>\MQL5\` e **o GUID muda por
-instalação**. Portanto:
-
-- `tools/setup/junctions.ps1` lê o caminho de um arquivo local **não versionado**
-- Junctions de `MQL5\Include\ARROW`, `MQL5\Indicators\ARROW`, `MQL5\Experts\ARROW` e
-  `MQL5\Scripts\ARROW` para dentro do repositório
-- Nenhum caminho absoluto de máquina entra em arquivo versionado
-
-### Compilação
-
-```
-metaeditor64.exe /compile:"<caminho>" /log
-```
-
-Compilar e ler o log é obrigatório antes de declarar qualquer tarefa concluída.
-
-### 12.1 Dados nunca entram no Git
-
-O histórico de ticks tem vários GB. Um único arquivo acima de 100 MB é **rejeitado pelo GitHub no
-push** — mas o commit local já existe nesse ponto, e desfazer exige reescrita de histórico.
-Remover o arquivo depois não encolhe o repositório: o histórico retém o blob para sempre.
-
-Por isso a proteção é em camadas, não só o `.gitignore`.
-
-**`.gitignore` obrigatório — commitado ANTES de qualquer download terminar.** O arquivo na raiz é
-a versão normativa; o bloco abaixo é o mínimo que ele deve conter:
-
-```
-# dados — nunca versionados
-data/
-download/
-.dukascopy-cache/
-*.csv
-*.parquet
-*.bi5
-*.zip
-!reports/**/*.csv
-
-# binários e artefatos MQL5
-*.ex5
-*.ex4
-MQL5/Files/
-**/tester/
-
-# local, por máquina
-tools/setup/local_paths.*
-!tools/setup/local_paths.example.*
-.env
-*.log
-
-# python
-__pycache__/
-.ipynb_checkpoints/
-```
-
-Três entradas merecem explicação porque a ausência delas anula a regra que as cerca:
-
-- `download/` é o diretório **padrão** do `dukascopy-node`. Se o `-dir` for omitido, o download
-  cai em `C:\dev\ARROW\download\` — dentro do repositório e fora de `data/`.
-- `.dukascopy-cache/` é o cache do `-ch`, criado na **raiz** do diretório de trabalho e composto
-  de `.json`. Nenhuma outra regra da lista o alcança.
-- As duas negações existem porque a regra imediatamente acima delas engoliria algo que precisa
-  ser versionado: `*.csv` mataria os CSVs pequenos que a regra 4 abaixo autoriza em `reports/`, e
-  `local_paths.*` mataria o próprio modelo, deixando uma máquina nova sem ponto de partida.
-
-**Regras operacionais:**
-
-1. **`-dir` sempre explícito**, apontando para `data/dukascopy`. Nunca rodar o downloader sem ele.
-2. **Nunca `git add -A` nem `git add .`** neste repositório. Adicionar por caminho.
-3. **Verificação antes de todo commit:** nenhum arquivo staged acima de 5 MB. Se houver, parar e
-   investigar antes de commitar — não commitar e limpar depois.
-   ```
-   git diff --cached --name-only | ForEach-Object { if ((Get-Item $_).Length -gt 5MB) { $_ } }
-   ```
-4. **`reports/` é versionado, mas só aceita markdown, PNG e CSV pequeno.** Saída volumosa de
-   teste vai para `data/`, e o relatório referencia o caminho em vez de embutir o conteúdo.
-
-**Se dado já foi commitado:** se ainda não houve push, `git reset` até antes do commit resolve.
-Se já houve push, é reescrita de histórico com `git filter-repo` e force-push — tratar como
-incidente, escrever no relatório de sessão, e verificar que nenhuma outra máquina tinha puxado o
-commit antes.
-
-### 12.2 Repositório público
-
-Código público, dados não. **Nunca entram:** credenciais, número de conta, tokens, nome de
-servidor, arquivos de tick da Dukascopy (volume, e a redistribuição pode violar os termos da
-fonte), ticks do broker, qualquer identificador pessoal.
-
----
-
-## 13. Restrições operacionais
-
-**A spec medida do símbolo vive em `docs/REFERENCIA-XAUUSD.md`** — dígitos, contract size,
-tick value, margem, swap, execução, volumes e nível de stops. Não é repetida aqui.
-
-Restrições que ainda não têm valor definido, e que bloqueiam conclusão de Gate 2:
-
-| Parâmetro | Valor |
-|---|---|
-| Capital inicial | `<<PENDENTE>>` |
-| Drawdown máximo tolerado | `<<PENDENTE>>` |
-| Critério para passar de demo a real | `<<PENDENTE>>` |
-
-### 13.1 O custo como exigência de edge
-
-O spread é **pedágio fixo pago na entrada**, não custo por unidade de tempo. Mas ele desloca **as
-duas barreiras na mesma direção**: numa compra com alvo e stop líquidos de tamanho `R`, o bid
-precisa subir `R+c` para ganhar e só cair `R−c` para perder.
-
-Sob caminho sem deriva: P(ganhar) = `(R−c)/2R` e esperança = **exatamente −c**, para qualquer
-escolha de alvo e stop. A métrica operacional é o **acréscimo de acerto necessário**, `c/(2R)`:
-
-A tabela de edge exigido por tamanho de alvo está em `docs/REFERENCIA-XAUUSD.md`.
-
-**Armadilha da taxa de acerto:** alvo +$0,30 com stop −$3,00 produz ~85% de trades vencedores e
-esperança de −$0,20. Taxa alta de acerto não é edge — é a mesma matemática do martingale por
-outra porta.
-
-Alvos abaixo de ~$1,00 líquido exigem 10 pp ou mais e são hipótese extraordinária, não ponto de
-partida.
-
-### 13.2 Onde a sessão entra
-
-A sessão não altera o custo. Altera **quanto tempo leva para R ficar grande o bastante**, já que
-R alcançável ≈ σ√T.
-
-**Os valores medidos de σ, por sessão, por hora e por ano, e a tabela de tempo para alcançar R
-estão em `docs/REFERENCIA-XAUUSD.md`.** Eles expiram: σ escala com o nível de preço e o regime de
-volatilidade também se move. O gatilho de remedição está declarado lá.
-
-Duas conclusões normativas que saíram da medição:
-
-- **A premissa de que a sessão asiática é ~3× mais exigente em edge está refutada.** O perfil
-  intradiário achatou de forma monótona ao longo de quatro anos. Filtrar sessão para evitá-la não
-  tem base empírica; se `REGIME` ou `COST` discriminarem horário, o critério sai de medição
-  corrente e é remedido.
-- **Nenhuma sessão é proibida.**
-
-Ordem limitada na entrada é a única forma de não pagar o spread — ao custo de seleção adversa.
-Linha futura, fora do escopo atual.
-
-### 13.3 Consequências operacionais da spec
-
-- **Conta em JPY com lucro em USD:** todo trade carrega conversão USDJPY. R é imune; equity,
-  drawdown e agregação em ienes não. Limites de risco definidos em R; curva em JPY reportada
-  separadamente.
-- **Alavancagem ~1:2000:** margem não é restrição e o broker não protege de nada. Todo controle
-  de risco vive na EA. **Stop obrigatório em toda ordem, sem exceção.**
-- **Swap assimétrico:** longs pagam $48/lote/noite, shorts zero, quarta ×3. Um trade que vaze
-  para overnight contamina o backtest inteiro. **Fechamento forçado antes do intervalo diário é
-  regra dura.**
-- **Nível de Stops = 0:** favorável — SL/TP apertados são tecnicamente permitidos.
-
----
-
-## 14. Fora de escopo
-
-- Qualquer forma de martingale, grid ou recuperação por exposição
-- Otimização de parâmetros antes do Gate 2 ter sido passado isoladamente
-- Componentes auto-adaptativos ou de aprendizado online em produção
-- Sensor escrito em MQL5 antes de a hipótese sobreviver a teste em `research/`
-- Outros instrumentos, contas ou corretoras além de `XAUUSDm` na conta Standard — inclusive
-  `XAUUSDz` e BTCUSD. Entram numa bateria posterior, só depois de existir catálogo de
-  sensores e indicadores validados, e essa bateria exige ADR próprio que declare a correção
-  para testes múltiplos entre instrumentos **antes** de medir (ADR 0007)
-- Outros timeframes além de M1 (M5/M15/M30 apenas como contexto macro)
-- Refatoração estética ou reorganização não solicitada
-- Painéis e dashboards em MQL5 além do necessário para visualizar sensores
-
----
-
-## 15. Armadilhas conhecidas do MQL5
+## 9. Armadilhas do MQL5
 
 - `BarsCalculated()` antes de `CopyBuffer()` — sem isso, desalinhamento silencioso
-- Buffers de setas não limpos em ticks incrementais — setas fantasma empilhadas
-- **3 dígitos: 1 point = $0,001.** Filtros de spread em pontos se comportam de forma
-  contraintuitiva. Sempre logar unidade e valor.
-- Filtro de spread nunca acima do stop de emergência na ordem de avaliação — durante spikes,
+- Buffers de setas não limpos em ticks incrementais — setas fantasma
+- **3 dígitos: 1 point = $0,001.** Filtros de spread em pontos são contraintuitivos. Logar unidade
+- Filtro de spread nunca acima do stop de emergência na ordem de avaliação — durante spikes
   bloqueia justamente o stop que precisava disparar
-- Arredondamento de volume achatando progressões silenciosamente
 - Contract size do ouro é 100 oz, não 100.000 — a matemática de lote difere de FX
 - `OnCalculate` com `prev_calculated` incorreto em recálculo de histórico
+- **Um Script por gráfico**: o segundo desaloja o primeiro. Coleta contínua é EA, não Script
+- MQL5 só escreve em `<terminal>\MQL5\Files\`. A junction `Files\ARROW → data` é a ponte
 
 ---
 
-## 16. O laboratório
+## 10. Como trabalhar
 
-**Ambiente único (ADR 0009).** Debate conceitual, desenho experimental, matemática, decisão de
-arquitetura, implementação, análise, compilação e git acontecem **aqui**. Não há superfície
-separada para pensar. Transporte de contexto entre superfícies tem perda, e a perda já produziu
-brief citando seção esvaziada, brief com σ desatualizada, e a mesma fórmula errada duas vezes.
+**Ambiente único.** Debate, desenho experimental, matemática, implementação, análise e git
+acontecem aqui.
 
-### 16.1 Como uma ideia é tratada
-
-**Explorar → dar forma → só então checar restrição.** Nessa ordem, sempre. Inverter é como a
-exploração morre.
-
-**Nenhuma ideia é recusada por ADR** (ADR 0010). ADR registra decisão tomada; não é veto sobre
-pergunta nova. Se uma restrição morder de verdade, a resposta é uma das três — e nunca "não":
-
-1. **A versão que satisfaz a restrição.** Quase sempre existe, porque a restrição costuma ser de
-   forma e não de conteúdo.
-2. **"Colide com a pétrea N, e o número é este."** Com o número, conforme a §1.
-3. **"O ADR que atrapalha é o M, e ele deveria mudar"** — seguido do ADR que o supersede.
-4. **Exceção com escopo** (ADR 0011). Um ADR pode estar certo em geral e errado para um
-   componente. A exceção é ela própria um ADR, nomeia o componente, e argumenta **por que a razão
-   de ser do ADR original não se aplica ali**.
-
-   Três condições, e as três são verificáveis:
-
-   - **justificada por mecanismo, nunca por resultado.** *"Funciona muito bem mas viola o ADR N"*
-     é proibido — seria fazer toda regra dobrar na direção do número que apareceu, e número bom
-     aparece por acaso o tempo todo (§7);
-   - **commitada antes da medição que se beneficia dela.** Exceção cujo commit não precede a
-     medição é **nula**, e a medição junto;
-   - **não contorna pétrea.** Exceção vale sobre ADR; a §3 não admite exceção.
-
-   **Três exceções ao mesmo ADR disparam revisão obrigatória dele** — para o ADR 0002, duas.
-   A quarta vez que se contorna a mesma coisa não é caso particular, é padrão.
-
-Só as cláusulas pétreas da §3 recusam. E mesmo elas recusam **construir**, jamais investigar:
-debater por que martingale arruína é trabalho legítimo; construí-lo não é.
-
-**Caso resolvido, para não haver dúvida.** Pedido: *"um sensor que preveja até onde o próximo
-candle pode chegar"*.
-
-- **Errado**, e é o que este documento proíbe: *"o ADR 0005 congelou as primitivas de `bars/`"*,
-  ou *"a §18 diz que primeiro vem `broker/`"*, ou *"falta a tese"*.
-- **Certo:** é função `VOLATILITY` ou `STRUCTURE` — prever alcance é prever dispersão condicional.
-  Explorar o que "até onde" significa: range, máximo favorável, percentil da distribuição
-  condicional. Achar o mecanismo. **Depois** dar a forma que o contrato exige — adimensional com
-  `E=0` e `SD=1` sob o nulo, sem gate interno, com caminho incremental.
-
-### 16.2 Sonda e hipótese
-
-| | Sonda | Hipótese |
-|---|---|---|
-| O que é | Medição exploratória, para orientar | Afirmação que poderia justificar construir sensor |
-| Pré-registro (§6.2) | não exige | **exige** |
-| Subagentes | não | **sim** |
-| Vale como evidência | **não** | sim |
-
-A sonda é o que torna o laboratório utilizável: medir para ver, rápido, sem cerimônia. O preço é
-que **não vale como prova** e fica marcada como sonda no relatório.
-
-**Gatilho de promoção:** todo resultado **citado** para justificar decisão vira hipótese
-retroativamente e exige o caminho completo, mesmo tendo nascido sonda. Citar é o gatilho, não a
-intenção. O piloto de 2026-06 era sonda, foi citado como evidência, e um brief inteiro morreu com
-ele.
-
-### 16.3 Papéis
-
-**Claude Code — laboratório.** Explora de forma generativa e não defensiva. Transforma ideia vaga
-em forma testável: mecanismo, falsificador, normalização, caminho incremental. Escreve o ADR de
-hipótese, implementa, e argumenta contra as próprias ideias com honestidade — o que **não** é
-recusá-las antes de explorar.
-
-**Subagentes — verificação.** Existem porque quem propõe e valida a própria hipótese tem interesse
-na sobrevivência dela. Restauram a separação que a divisão chat/Code dava, sem a perda de
-contexto, porque leem o repositório em vez de receber estado por texto.
-
-Mandatos **fixos aqui, não compostos caso a caso** — prompt escrito por mim seria eu escolhendo o
-quanto o verificador aperta:
+**Subagentes verificam.** Existem porque quem propõe e valida a própria hipótese tem interesse na
+sobrevivência dela. Três mandatos, fixos aqui e não compostos caso a caso:
 
 | Papel | Mandato |
 |---|---|
-| **Implementador independente** | Implementa a medição a partir do pré-registro, **sem ver minha implementação**. Dois caminhos que concordam produzem número real; se divergem, a divergência é o achado |
-| **Refutador** | Tenta matar a hipótese. Assume refutado em caso de dúvida. Procura a explicação mundana |
-| **Auditor de convenção** | Confere máscara de sessão, feriados, bid-não-mid, blocos de um dia — as convenções que já quebraram três vezes |
+| Implementador independente | Implementa a medição **a partir do pré-registro, sem ver minha implementação**. Dois caminhos que concordam produzem número real; se divergem, a divergência é o achado |
+| Refutador | Tenta matar a hipótese. Assume refutado em caso de dúvida |
+| Auditor de convenção | Confere máscara, feriados, bid-não-mid, blocos de um dia |
 
-Revisar meu código **não** é mandato de verificação: quem lê o que escrevi herda meus erros. O
-fator `(n−k)` sobreviveu a dois briefs porque só existia uma derivação.
+Revisar meu código não é mandato de verificação — quem lê o que escrevi herda meus erros. O
+veredito é commitado antes de eu revisar qualquer coisa; senão eu itero até concordarem.
 
-**O veredito é commitado antes de eu revisar qualquer coisa** — senão eu itero até concordarem.
-E vale o limite da §7: hipótese que precisa de mais de três rodadas de objeção para sobreviver
-**não sobreviveu, foi lixada**.
+**Regras:** ADR antes de mudança estrutural e antes de hipótese · edições cirúrgicas · compilar e
+ler o log antes de dizer que terminou · nunca reabrir pétrea · nunca reportar número que não saiu
+de execução real · commits pequenos, mensagem dizendo o porquê.
 
-### 16.4 Regras de execução
+**Sessão.** `STATE.md` é a primeira leitura e vence sobre memória de conversa. Trabalho em branch
+`session/AAAA-MM-DD-<slug>`, merge em `main`, push. **A mensagem de commit é o registro da
+sessão** — não há relatório separado. Nunca encerrar com alteração não commitada.
 
-1. Antes de mudança estrutural, ADR — contexto, decisão, alternativas rejeitadas e por quê. Antes
-   de **hipótese**, ADR com falsificador e seção adversarial, commitado antes do código que mede
-2. Edições cirúrgicas. Não reescrever arquivo inteiro quando um trecho resolve
-3. Compilar e ler o log antes de dizer que terminou
-4. Verificar balanceamento de chaves e parênteses antes de entregar
-5. Nunca reabrir cláusula pétrea. Objeção vai para ADR, e a implementação para
-6. Nunca reportar número que não saiu de execução real e logada
-7. Ao concluir um sensor, atualizar `docs/sensors/<nome>.md`
-8. Commits pequenos, mensagem descrevendo o porquê
-9. **Propor.** Levantar hipótese é função, não iniciativa opcional (§1)
-
-## 17. Protocolo de sessão e sincronização
-
-### 17.1 Um escritor só
-
-**O Claude Code é a única entidade que escreve no repositório.** Continua sendo fato técnico, e
-com ambiente único (ADR 0009) deixa de precisar de justificativa: não há outra superfície.
-
-O usuário pode entregar um escopo fechado em formato de task brief
-(`docs/templates/task-brief-template.md`) quando quiser delimitar trabalho. Isso é uso legítimo e
-diferente de transporte de contexto — o estado do projeto se lê do repositório, não da mensagem.
-
-### 17.2 `STATE.md`
-
-Na raiz. **Primeira leitura obrigatória de toda sessão, em qualquer superfície.** Se contradiz o
-contexto carregado ou a memória da conversa, **`STATE.md` vence**.
-
-Escrito exclusivamente pelo Code.
-
-### 17.3 Trava por sessão
-
-`STATE.md` declara `Status: ABERTA | FECHADA` e a máquina. Se `ABERTA` numa máquina diferente, o
-Code não inicia: avisa com máquina e horário e pergunta se foi abandonada. Sessão abandonada é
-fechada com commit próprio antes de qualquer outra coisa.
-
-### 17.4 Ritual de abertura
-
-1. `git pull --rebase`
-2. Ler `STATE.md` e checar a trava
-3. Ler `CLAUDE.md` e o índice de `docs/decisions/`
-4. Criar branch `session/AAAA-MM-DD-<slug>`
-5. Marcar `Status: ABERTA` + máquina + branch, commit
-6. Só então começar
-
-### 17.5 Ritual de encerramento
-
-1. Compilar; nada é declarado pronto sem log limpo
-2. Escrever `docs/sessions/AAAA-MM-DD-HHMM-<slug>.md`
-3. Converter em ADR toda decisão estrutural da sessão
-4. Atualizar `STATE.md`: fechar sessão, pendências, próximo passo
-5. Mergear em `main` **ou** marcar como WIP em `STATE.md`
-6. `git push` e confirmar `git status` limpo
-
-**Nunca encerrar com alterações não commitadas.** Com quatro máquinas, trabalho não commitado é
-trabalho perdido ou duplicado.
-
-### 17.6 Precedência em caso de contradição
-
-1. O que está em **ADR** vence
-2. Se não está em ADR, **não é decisão, é sugestão** — vira ADR antes de virar código
-3. `STATE.md` vence sobre memória de conversa
-4. **Medição vence sobre as três acima.** Número que saiu de execução real derruba ADR, `STATE.md`
-   e prosa — e a derrubada vira ADR novo, não emenda silenciosa. Já aconteceu quatro vezes
-
-O que não está no repositório não existe. Isso resolve também a perda por compactação de
-contexto.
+**Precedência:** ADR vence sobre prosa · o que não está em ADR é sugestão, não decisão ·
+`STATE.md` vence sobre memória · **medição vence sobre os três**, e a derrubada vira ADR novo.
 
 ---
 
-## 18. Estado atual
+## 11. Fora de escopo
 
-Nenhum sensor validado. Nenhuma medição real. **Em curso:** uma corrida única de download
-cobrindo 4 anos de ticks Dukascopy (2022-08 a 2026-08) para `data/dukascopy/`, encadeando os
-segmentos anuais de 2025 para 2022 (§10.1).
+Martingale, grid ou recuperação por exposição · otimização antes do Gate 2 · componentes
+auto-adaptativos em produção · sensor em MQL5 antes de sobreviver em `research/` · outros
+instrumentos, contas ou corretoras além de `XAUUSDm` Standard, até existir catálogo validado
+(ADR 0007) · outros timeframes além de M1 · refatoração estética · painéis e dashboards.
 
-**Próximos passos na ordem:**
+## 12. Estado
 
-1. **`.gitignore` commitado agora, antes de o download terminar** (§12.1). Uma vez que dado entra
-   no histórico, remover não encolhe o repositório.
-2. **`Scripts/ARROW/BrokerTickLogger.mq5` — começa hoje, roda ininterrupto.** Loga bid/ask do
-   `XAUUSDm` para `data/broker/`. É o único insumo do modelo de spread, e o broker retém pouco
-   histórico. Cada dia não coletado é verdade de campo perdida para sempre. Puxar também o que
-   já existe via `CopyTicks` antes que role para fora da janela de retenção.
-3. **Tese** — duas ou três hipóteses mecânicas falsificáveis, escritas antes de olhar dado. Sem
-   isso, a construção de sensores é busca cega, e a correção para testes múltiplos existe
-   justamente para punir busca cega.
-4. `research/lib/` — conversão Dukascopy CSV → Parquet particionado por mês, carregamento,
-   custos, block bootstrap, IC
-5. ~~**Auditoria em Python sobre `raw/`**~~ — **feita** em 2026-08-02.
-   `research/audit_sigma.py` e `research/build_raw.py`; relatórios em `reports/`. A §13.2 passou
-   a conter medição, não estimativa, e a premissa de que a sessão asiática é ~3× mais exigente
-   foi refutada. Falta ainda a densidade de tick por sessão.
-6. **`Scripts/ARROW/DataAudit.mq5`** — o equivalente do lado do broker:
-   - `SYMBOL_DIGITS`, `SYMBOL_TRADE_TICK_VALUE`, `SYMBOL_TRADE_CONTRACT_SIZE`, `SYMBOL_POINT`
-   - Distribuição de spread real por hora × faixa de volatilidade — média **e caudas**
-   - Verificação de fuso pelo método da §10.7 — borda do intervalo diário ancorada à manutenção
-     do COMEX, medida em janeiro **e** em julho. Não por `TimeCurrent()` vs `TimeGMT()`, que
-     mede uma estação só
-   - Tick value efetivo em JPY
-7. Construção de `spread/` e `curated/` — modelo de spread com semente registrada, máscara de
-   sessão aplicada
-8. Medição dos três gaps (§11.2)
-9. `Core/` — `SensorOut`, logging, utilidades de normalização
-10. Harness genérico + baseline aleatório (a régua vem antes do primeiro sensor)
-11. Primeiro sensor
+Em `STATE.md`. Números medidos em `docs/REFERENCIA-XAUUSD.md`.

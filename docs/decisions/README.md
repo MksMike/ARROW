@@ -18,6 +18,7 @@
 | [0009](0009-ambiente-unico.md) | Ambiente único: debate e implementação no mesmo lugar | aceito | usuário, 2026-08-03 |
 | [0010](0010-laboratorio-e-papeis.md) | O laboratório: ADR restringe forma, não fecha pergunta | aceito | usuário, 2026-08-03 |
 | [0011](0011-excecoes-com-escopo.md) | Exceção com escopo: um ADR pode não valer para um componente | aceito | usuário, 2026-08-03 |
+| [0012](0012-poda.md) | Poda: o processo passou do ponto | aceito | usuário, 2026-08-03 |
 
 ## Pendentes de ADR
 
