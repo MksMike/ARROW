@@ -15,6 +15,7 @@
 | Branch | `main` — sessão mergeada e pushada |
 | Aberta em | 2026-08-02 |
 | Última atualização | 2026-08-02 |
+| Última sessão | `raw-4-anos` |
 
 > **Se Status = ABERTA numa máquina diferente da atual:** não iniciar trabalho. Avisar o usuário,
 > mostrar máquina e horário, e perguntar se a sessão foi abandonada. Sessão abandonada é fechada
@@ -76,32 +77,50 @@ perdido para sempre** — a janela de retenção do broker rola.
 Enquanto a tese e a semântica de `confidence` não voltarem do chat, o trabalho segue pelo ADR
 0005 e para antes de qualquer sensor.
 
-1. **Colocar o `BrokerTickLogger` em produção** — ver acima. É do usuário, não meu.
-2. **Auditoria em Python sobre `raw/`** (§18 passo 5) — agora possível, `raw/` existe para
-   2025-08..2026-08: **σ por minuto por bucket de hora**, que substitui as estimativas
-   preliminares das §13.1/13.2, mais densidade de tick por sessão.
-3. **Converter os demais anos** conforme cada CSV fechar:
-   `.venv\Scripts\python.exe research\build_raw.py --csv data\dukascopy\<arquivo>.csv`
-   Conferir antes que o arquivo está estável — rodar sobre CSV em escrita trunca a última linha.
-   **Nunca reprocessar um CSV já convertido sem `--validate-only`:** `write_raw` é append-only e
-   duplicaria `raw/`.
-4. `DataAudit.mq5`, depois `spread_model.py`, `curate.py`, `bars.py`, `parity.py` +
-   `ParityDump.mq5` (ADR 0005, ordem da §7 do brief).
+1. **Colocar o `BrokerTickLogger` em produção** — ver acima. É do usuário, não meu, e agora é o
+   único bloqueio da camada de dados.
+2. **Auditoria em Python sobre `raw/`** (§18 passo 5) — desbloqueada, e agora sobre os quatro
+   anos inteiros: **σ por minuto por bucket de hora**, que substitui as estimativas preliminares
+   das §13.1/13.2, mais densidade de tick por sessão. É o insumo mais importante do projeto e não
+   depende de `broker/`.
+3. `DataAudit.mq5`, depois `spread_model.py`, `curate.py`, `bars.py`, `parity.py` +
+   `ParityDump.mq5` (ADR 0005, ordem da §7 do brief). Do `spread_model.py` em diante tudo
+   depende de `broker/`.
+
+> **Nunca reprocessar um CSV já convertido.** `write_raw` é append-only: rodar `build_raw.py`
+> outra vez sobre um dos quatro CSVs **duplicaria** o dado em `raw/` em vez de sobrescrever. Para
+> revalidar, `--validate-only`. Para encadear conversões novas, `--skip-validate` e fechar com
+> `--validate-only`.
 
 **Nenhum sensor. Nenhuma feature derivada além das nove primitivas de `bars/`.**
 
 ## Estado dos dados
 
-### `data/raw/` — existe, um ano
+### `data/raw/` — COMPLETA, quatro anos
 
 | | |
 |---|---|
-| Cobertura | `2025-08-01 00:00:00 UTC` → `2026-07-31 20:59:02.882 UTC` |
-| Ticks | 91.480.835 |
-| Tamanho | 522 MB em Parquet zstd, 12 partições mensais |
-| Defeito estrutural | nenhum — 0 retrocesso de `ts`, 0 `ask < bid`, 0 preço ≤ 0, 0 duplicata |
-| Cobertura | 1 dia útil sem tick: `2026-04-03`, Sexta-feira Santa |
-| Relatório | `reports/xauusd-2025-08_2026-08-validacao.md` |
+| Cobertura | `2022-08-01 00:00:00.143 UTC` → `2026-07-31 20:59:02.882 UTC` |
+| Ticks | **240.344.662** |
+| Tamanho | 1,4 GB em Parquet zstd, 48 partições mensais, 94 arquivos |
+| Defeito estrutural | **nenhum** — 0 retrocesso de `ts`, 0 `ask < bid`, 0 preço ≤ 0, 0 duplicata |
+| Dias com dado | 1.245, sendo **1.041 dias úteis** |
+| Relatório | `reports/xauusd-2022-08_2026-08-validacao.md` |
+
+**O requisito de amostra da §10.1 está satisfeito pela primeira vez.** 1.041 dias úteis contra o
+padrão do projeto de ~1.020 (3 folds + OOS final com folga). Antes disso nem o mínimo absoluto de
+2 anos era atingido.
+
+**Toda ausência no dataset tem explicação de calendário; nenhuma sobrou sem causa.**
+
+- 4 dias úteis sem nenhum tick: `2023-04-07`, `2024-03-29`, `2025-04-18`, `2026-04-03` — as
+  quatro **Sextas-feiras Santas** do período. O ouro não negocia.
+- 8 dias anormalmente magros (1% a 4% da mediana do mesmo dia da semana): todos os **Natais e
+  Ano-Novos**, incluindo os observados `2022-12-26` e `2023-01-02`. Sessão encurtada, não buraco.
+
+Continuidade entre os quatro segmentos de download conferida: o CSV de 2024 termina em
+`1754006399345` e o de 2025 começa em `1754006400000` — 655 ms. Sem buraco nas emendas, o que
+importa porque o Gate 2 exige bloco out-of-sample contíguo.
 
 O último tick cai exatamente na borda do intervalo diário do símbolo (20:58). É evidência
 independente a favor da hipótese de servidor UTC+0 da §10.7 — **de uma estação só**, portanto não
@@ -109,19 +128,13 @@ substitui o teste das duas.
 
 ### `data/broker/` — vazio
 
-Nada coletado. Ver "Ação que depende do usuário".
+Nada coletado. Ver "Ação que depende do usuário". **É o único gargalo restante da camada de
+dados:** `raw/` está pronta, e `spread/`, `curated/` e `bars/` dependem só de `broker/`.
 
-### Download da Dukascopy
+### Download da Dukascopy — CONCLUÍDO
 
-Corrida única em andamento, 2022-08 a 2026-08 em segmentos anuais, ordem
-**2025 → 2024 → 2023 → 2022**, parâmetros `-bs 10 -bp 500` (§10.1).
-
-- `2025-08 → 2026-08`: **completo e já convertido para `raw/`**
-- `2024-08 → 2025-08`: baixando
-- `2023`, `2022`: na fila
-
-O CSV `xauusd-tick-2022-08-01-2023-08-01.csv` (173 MB) é **resto da corrida anterior, morta**.
-Está truncado. Não converter — será refeito pela corrida atual.
+Os quatro segmentos anuais baixados e convertidos, 11 GB de CSV em `data/dukascopy/`.
+Parâmetros `-bs 10 -bp 500` (§10.1). Os CSVs são descartáveis e reconstituíveis; `raw/` não.
 
 ## Decisões pendentes de ADR
 
@@ -151,5 +164,6 @@ Está truncado. Não converter — será refeito pela corrida atual.
 
 | Data | Máquina | Relatório |
 |---|---|---|
+| 2026-08-02 | PC-Home | [`raw/` dos quatro anos](docs/sessions/2026-08-02-1615-raw-4-anos.md) |
 | 2026-08-02 | PC-Home | [camada de dados](docs/sessions/2026-08-02-0730-camada-de-dados.md) |
 | 2026-08-02 | PC-Home | [bootstrap](docs/sessions/2026-08-02-0700-bootstrap.md) |

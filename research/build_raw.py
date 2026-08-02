@@ -51,6 +51,15 @@ def main() -> int:
             "o mesmo CSV DUPLICA o dado em raw/ em vez de sobrescrever."
         ),
     )
+    ap.add_argument(
+        "--skip-validate",
+        action="store_true",
+        help=(
+            "Converter sem validar. Para encadear vários CSVs: a validação "
+            "percorre raw/ INTEIRA, então rodá-la a cada arquivo revalida o que "
+            "já passou. Encadear com --skip-validate e fechar com --validate-only."
+        ),
+    )
     args = ap.parse_args()
 
     logging.basicConfig(
@@ -88,6 +97,10 @@ def main() -> int:
             csv_path, raw_root, chunk_rows=args.chunk_rows
         )
         log.info("%s", stats)
+
+    if args.skip_validate:
+        log.info("skip-validate: conversão feita, raw/ NÃO foi validada")
+        return 0
 
     log.info("validando %s", raw_root)
     rep, counts = V.validate_raw_tree(raw_root, source=slug)
