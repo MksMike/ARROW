@@ -101,6 +101,26 @@ void DumpSpec(const int h, const string sym)
    W(h, sym, "swap_mode",          IntegerToString(SymbolInfoInteger(sym, SYMBOL_SWAP_MODE)));
    W(h, sym, "swap_rollover3days", IntegerToString(SymbolInfoInteger(sym, SYMBOL_SWAP_ROLLOVER3DAYS)));
    W(h, sym, "chart_mode",         IntegerToString(SymbolInfoInteger(sym, SYMBOL_CHART_MODE)));
+   W(h, sym, "trade_exemode",      IntegerToString(SymbolInfoInteger(sym, SYMBOL_TRADE_EXEMODE)));
+   W(h, sym, "trade_calc_mode",    IntegerToString(SymbolInfoInteger(sym, SYMBOL_TRADE_CALC_MODE)));
+   W(h, sym, "trade_mode",         IntegerToString(SymbolInfoInteger(sym, SYMBOL_TRADE_MODE)));
+   W(h, sym, "filling_mode",       IntegerToString(SymbolInfoInteger(sym, SYMBOL_FILLING_MODE)));
+   W(h, sym, "expiration_mode",    IntegerToString(SymbolInfoInteger(sym, SYMBOL_EXPIRATION_MODE)));
+   W(h, sym, "order_mode",         IntegerToString(SymbolInfoInteger(sym, SYMBOL_ORDER_MODE)));
+   W(h, sym, "margin_initial",     DoubleToString(SymbolInfoDouble(sym, SYMBOL_MARGIN_INITIAL), 4));
+   W(h, sym, "margin_maintenance", DoubleToString(SymbolInfoDouble(sym, SYMBOL_MARGIN_MAINTENANCE), 4));
+   W(h, sym, "path",               SymbolInfoString(sym, SYMBOL_PATH));
+   W(h, sym, "description",        SymbolInfoString(sym, SYMBOL_DESCRIPTION));
+
+   // Margem efetiva de 1 lote pelos dois lados. Elas diferem porque o calculo
+   // usa o preco do lado correspondente.
+   double marg  = 0.0;
+   double ask_p = SymbolInfoDouble(sym, SYMBOL_ASK);
+   double bid_p = SymbolInfoDouble(sym, SYMBOL_BID);
+   if(ask_p > 0 && OrderCalcMargin(ORDER_TYPE_BUY, sym, 1.0, ask_p, marg))
+      W(h, sym, "margem_1lote_compra", DoubleToString(marg, 2), AccountInfoString(ACCOUNT_CURRENCY));
+   if(bid_p > 0 && OrderCalcMargin(ORDER_TYPE_SELL, sym, 1.0, bid_p, marg))
+      W(h, sym, "margem_1lote_venda",  DoubleToString(marg, 2), AccountInfoString(ACCOUNT_CURRENCY));
 
    // Tick value efetivo na moeda da conta, por caminho independente do campo
    // SYMBOL_TRADE_TICK_VALUE. Se os dois divergirem, a divergencia e o achado.
@@ -123,6 +143,42 @@ void DumpSpec(const int h, const string sym)
 
    PrintFormat("ARROW: spec de %s registrada (digits=%d, contract=%.0f, tick_value=%.4f %s)",
                sym, digits, contract, tickval, AccountInfoString(ACCOUNT_CURRENCY));
+}
+
+//+------------------------------------------------------------------+
+//| Sessoes de cotacao e negociacao, lidas do proprio servidor.      |
+//|                                                                  |
+//| Existe porque a prosa da secao 10.6 divergia do terminal em dois |
+//| pontos -- abertura de domingo e reabertura diaria -- e prosa nao |
+//| e fonte. Lido programaticamente, o cronograma nao pode divergir. |
+//+------------------------------------------------------------------+
+void DumpSessions(const int h, const string sym)
+{
+   string dias[] = {"domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"};
+   datetime de, ate;
+
+   for(int d = 0; d < 7; d++)
+   {
+      ENUM_DAY_OF_WEEK dow = (ENUM_DAY_OF_WEEK)d;
+
+      for(uint i = 0; i < 8; i++)
+      {
+         if(!SymbolInfoSessionQuote(sym, dow, i, de, ate))
+            break;
+         FileWriteString(h, sym + "," + dias[d] + ",cotacao," + IntegerToString(i) + ","
+                            + TimeToString(de, TIME_MINUTES) + ","
+                            + TimeToString(ate, TIME_MINUTES) + "\r\n");
+      }
+      for(uint i = 0; i < 8; i++)
+      {
+         if(!SymbolInfoSessionTrade(sym, dow, i, de, ate))
+            break;
+         FileWriteString(h, sym + "," + dias[d] + ",negociacao," + IntegerToString(i) + ","
+                            + TimeToString(de, TIME_MINUTES) + ","
+                            + TimeToString(ate, TIME_MINUTES) + "\r\n");
+      }
+   }
+   PrintFormat("ARROW: sessoes de %s registradas.", sym);
 }
 
 //+------------------------------------------------------------------+
@@ -204,6 +260,19 @@ void OnStart()
    W(hs, "-", "hora_servidor",  TimeToString(TimeTradeServer(), TIME_DATE | TIME_SECONDS));
    W(hs, "-", "hora_gmt",       TimeToString(TimeGMT(), TIME_DATE | TIME_SECONDS));
    FileClose(hs);
+
+   // --- sessoes, lidas do servidor ------------------------------------------
+   int hses = FileOpen(OUT_DIR + "\\sessions.csv", FILE_WRITE | FILE_TXT | FILE_ANSI);
+   if(hses == INVALID_HANDLE)
+      PrintFormat("ARROW: nao consegui escrever sessions.csv (erro %d)", GetLastError());
+   else
+   {
+      FileWriteString(hses, "symbol,dia,tipo,indice,de,ate\r\n");
+      DumpSessions(hses, InpSymbol);
+      if(InpSymbolAlt != "")
+         DumpSessions(hses, InpSymbolAlt);
+      FileClose(hses);
+   }
 
    // --- fuso: paradas diarias em duas estacoes ------------------------------
    int hb = FileOpen(OUT_DIR + "\\daily_breaks.csv",

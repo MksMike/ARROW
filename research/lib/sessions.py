@@ -40,10 +40,12 @@ extensão do `DataAudit`.
 Horários de referência, no **verão americano** (§10.6). No inverno, tudo desloca
 `+1 hora`:
 
-* Domingo: 22:05–24:00
-* Segunda a quinta: 00:00–20:58 e 22:01–24:00
+* Domingo: 22:01–24:00 (cotação e negociação começam juntas)
+* Segunda a quinta: 00:00–20:58 e 22:00–24:00
 * Sexta: 00:00–20:58
 * Sábado: fechado
+
+Fonte: diálogo de especificação do símbolo no terminal, lido em 2026-08-02.
 """
 
 from __future__ import annotations
@@ -53,9 +55,20 @@ import datetime as _dt
 import pandas as pd
 
 # Bordas no VERÃO americano, em minutos desde a meia-noite.
+#
+# Valores lidos do dialogo de especificacao do simbolo no proprio terminal
+# (2026-08-02), que e a fonte autoritativa. A prosa da §10.6 divergia em dois
+# pontos e foi corrigida por ela:
+#
+#   domingo    — a §10.6 dizia cotacoes 22:00 e negociacao a partir de 22:05;
+#                o terminal diz 22:01 para as duas
+#   reabertura — a §10.6 dizia cotacoes 22:00 e negociacao 22:01;
+#                o terminal diz 22:00 para as duas
+#
+# Sao ~1.800 minutos de negociacao real nos quatro anos de `raw/`.
 BREAK_START_SUMMER = 20 * 60 + 58    # 20:58
-REOPEN_SUMMER = 22 * 60 + 1          # 22:01
-SUNDAY_OPEN_SUMMER = 22 * 60 + 5     # 22:05
+REOPEN_SUMMER = 22 * 60              # 22:00
+SUNDAY_OPEN_SUMMER = 22 * 60 + 1     # 22:01
 
 # No inverno tudo desloca uma hora, porque Nova York desloca e o servidor não.
 WINTER_SHIFT_MIN = 60
