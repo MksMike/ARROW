@@ -27,12 +27,22 @@ import pandas as pd
 
 log = logging.getLogger(__name__)
 
-# Abaixo disso um dia é suspeito o bastante para entrar no relatório.
-# Não é um limiar de aprovação — é um limiar de ATENÇÃO. Um pregão normal de
-# XAUUSD tem ordens de magnitude mais ticks que isto; qualquer coisa abaixo é
-# meio-feriado, falha de coleta ou buraco na fonte, e os três precisam ser
-# olhados por um humano antes de o dia entrar num bloco in-sample.
+# Piso absoluto: abaixo disso o dia é quase vazio, qualquer que seja o dia da
+# semana. Pega o caso degenerado.
 THIN_DAY_TICKS = 1_000
+
+# Piso RELATIVO, e é este que faz o trabalho.
+#
+# Um limiar absoluto não serve para detectar pregão quebrado, porque o domingo
+# tem sessão parcial (abre 22:00 UTC) e roda em ~7 mil ticks contra ~215 mil de
+# um pregão. Qualquer limiar absoluto alto o bastante para flagrar um pregão
+# defeituoso condena todo domingo; qualquer um baixo o bastante para poupar o
+# domingo deixa passar um pregão com 5 mil ticks — que é justamente o buraco de
+# coleta que esta verificação existe para pegar.
+#
+# A comparação, portanto, é contra a mediana do MESMO dia da semana. Domingo
+# compete com domingo, quinta com quinta.
+THIN_DAY_FRACTION = 0.20
 
 
 @dataclass
@@ -52,7 +62,8 @@ class ValidationReport:
 
     days_covered: int = 0
     days_missing: list[str] = field(default_factory=list)
-    thin_days: list[tuple[str, int]] = field(default_factory=list)
+    # (data, ticks, mediana do mesmo dia da semana, motivo)
+    thin_days: list[tuple[str, int, int, str]] = field(default_factory=list)
 
     @property
     def clean(self) -> bool:
@@ -84,6 +95,39 @@ def _weekdays_between(start: pd.Timestamp, end: pd.Timestamp) -> pd.DatetimeInde
     e é contado à parte de um dia útil cheio.
     """
     return pd.bdate_range(start.normalize(), end.normalize(), freq="C", weekmask="Mon Tue Wed Thu Fri")
+
+
+def find_thin_days(counts: pd.Series) -> list[tuple[str, int, int, str]]:
+    """Dias anormalmente magros, comparados contra o próprio dia da semana.
+
+    Devolve `(data, ticks, mediana do mesmo dia da semana, motivo)`.
+
+    A mediana por dia da semana é o único denominador honesto aqui: o mercado
+    de ouro tem sessão parcial no domingo e sessão cheia de segunda a sexta, e
+    misturar os dois num limiar único ou cega a verificação ou a faz gritar
+    todo domingo. Ver `THIN_DAY_FRACTION`.
+    """
+    if counts.empty:
+        return []
+
+    medians = counts.groupby(counts.index.dayofweek).median()
+    out: list[tuple[str, int, int, str]] = []
+
+    for day, n in counts.items():
+        med = float(medians.get(day.dayofweek, 0.0))
+        n = int(n)
+
+        if n < THIN_DAY_TICKS:
+            motivo = f"abaixo do piso absoluto de {THIN_DAY_TICKS:,}"
+        elif med > 0 and n < med * THIN_DAY_FRACTION:
+            pct = 100.0 * n / med
+            motivo = f"{pct:.0f}% da mediana de {day.day_name()}"
+        else:
+            continue
+
+        out.append((day.strftime("%Y-%m-%d"), n, int(med), motivo))
+
+    return out
 
 
 def ticks_per_day(frame: pd.DataFrame) -> pd.Series:
@@ -133,9 +177,7 @@ def validate(frame: pd.DataFrame, source: str = "raw") -> ValidationReport:
             d.strftime("%Y-%m-%d") for d in expected if d not in present
         ]
 
-    rep.thin_days = [
-        (d.strftime("%Y-%m-%d"), int(n)) for d, n in counts.items() if n < THIN_DAY_TICKS
-    ]
+    rep.thin_days = find_thin_days(counts)
 
     return rep
 
@@ -198,9 +240,7 @@ def validate_raw_tree(
             d.strftime("%Y-%m-%d") for d in expected if d not in present
         ]
 
-    combined.thin_days = [
-        (d.strftime("%Y-%m-%d"), int(n)) for d, n in counts.items() if n < THIN_DAY_TICKS
-    ]
+    combined.thin_days = find_thin_days(counts)
 
     return combined, counts.rename("ticks").to_frame()
 
@@ -297,16 +337,24 @@ def report_markdown(rep: ValidationReport, png_rel: str | None = None) -> str:
 
     if rep.thin_days:
         lines += [
-            f"## Dias com menos de {THIN_DAY_TICKS:,} ticks — {len(rep.thin_days)}",
+            f"## Dias anormalmente magros — {len(rep.thin_days)}",
             "",
-            "Não são necessariamente defeito: meio-feriado do ouro é real. Mas nenhum",
+            f"Comparados contra a mediana do MESMO dia da semana, não contra um limiar",
+            f"único: o domingo tem sessão parcial e roda numa ordem de grandeza abaixo de",
+            f"um pregão. Entram aqui os dias abaixo de {THIN_DAY_FRACTION:.0%} da mediana do",
+            f"seu dia da semana, ou abaixo do piso absoluto de {THIN_DAY_TICKS:,} ticks.",
+            "",
+            "Não são necessariamente defeito — meio-feriado do ouro é real. Mas nenhum",
             "deles deve entrar num bloco de teste sem ter sido olhado.",
             "",
-            "| Dia | Ticks |",
-            "|---|---|",
-            *[f"| {d} | {n:,} |" for d, n in rep.thin_days[:60]],
+            "| Dia | Ticks | Mediana do dia da semana | Motivo |",
+            "|---|---|---|---|",
+            *[f"| {d} | {n:,} | {m:,} | {r} |" for d, n, m, r in rep.thin_days[:60]],
             "",
         ]
+
+    if not rep.thin_days:
+        lines += ["## Dias anormalmente magros", "", "Nenhum.", ""]
 
     if png_rel:
         lines += ["## Ticks por dia", "", f"![ticks por dia]({png_rel})", ""]
