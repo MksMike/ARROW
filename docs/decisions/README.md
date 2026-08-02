@@ -2,8 +2,8 @@
 
 > Leitura obrigatória na abertura de sessão (`CLAUDE.md` §15.4).
 >
-> Decisão sem ADR não é decisão, é sugestão (§15.7). Em caso de contradição entre superfícies,
-> o que está escrito em ADR vence.
+> Decisão sem ADR não é decisão, é sugestão (§17.6). Hipótese exige ADR **antes** do código que
+> a mede, e a ordem é verificável no histórico do git (ADR 0009).
 
 | # | Título | Status | Origem |
 |---|---|---|---|
@@ -15,6 +15,7 @@
 | [0006](0006-feriados-excluidos-do-dataset.md) | Feriados de mercado excluídos do dataset | aceito | chat 2026-08-02 |
 | [0007](0007-foco-unico-em-xauusd.md) | Foco único em XAUUSDm até existir catálogo validado | aceito | chat 2026-08-02 |
 | [0008](0008-coletor-de-tick-como-ea.md) | O coletor de tick é Expert Advisor, não Script | aceito | Code, 2026-08-03 |
+| [0009](0009-ambiente-unico.md) | Ambiente único: debate e implementação no mesmo lugar | aceito | usuário, 2026-08-03 |
 
 ## Pendentes de ADR
 

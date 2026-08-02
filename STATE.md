@@ -1,7 +1,7 @@
 # STATE — ARROW
 
-> Arquivo de estado vivo. **Primeira coisa lida em toda sessão, em qualquer superfície.**
-> Escrito exclusivamente pelo Claude Code. O chat propõe deltas; nunca edita este arquivo.
+> Arquivo de estado vivo. **Primeira coisa lida em toda sessão.**
+> Escrito exclusivamente pelo Claude Code.
 > Se este arquivo contradiz sua memória de contexto, **este arquivo vence**.
 
 ---
@@ -10,12 +10,12 @@
 
 | Campo | Valor |
 |---|---|
-| Status | `ABERTA` |
+| Status | `FECHADA` |
 | Máquina | PC-Home |
-| Branch | `session/2026-08-03-ambiente-unico` |
+| Branch | `main` — sessao mergeada e pushada |
 | Aberta em | 2026-08-02 |
 | Última atualização | 2026-08-03 |
-| Última sessão | `ambiente-unico` (em curso) |
+| Última sessão | `ambiente-unico` |
 
 > **Se Status = ABERTA numa máquina diferente da atual:** não iniciar trabalho. Avisar o usuário,
 > mostrar máquina e horário, e perguntar se a sessão foi abandonada. Sessão abandonada é fechada
@@ -266,6 +266,7 @@ Parâmetros `-bs 10 -bp 500` (§10.1). Os CSVs são descartáveis e reconstituí
 
 | Assunto | Onde foi decidido | ADR |
 |---|---|---|
+| ~~Ambiente único~~ | usuário, 2026-08-03 | **0009 — escrito** |
 | Camada de dados e paridade Python/MQL5 | task brief do chat, 2026-08-02 | **0005 — escrito** |
 | Foco único em XAUUSDm | chat, 2026-08-02 | **0007 — escrito** |
 | Exclusão dos feriados do dataset | chat, 2026-08-02 | **0006 — escrito** |
@@ -290,6 +291,18 @@ Parâmetros `-bs 10 -bp 500` (§10.1). Os CSVs são descartáveis e reconstituí
 
 ---
 
+## Hipóteses testadas
+
+Contagem acumulada, exigida pelo ADR 0009 §3. É insumo da correção para testes múltiplos (§7),
+não estatística decorativa. Toda hipótese entra aqui, **inclusive as refutadas**.
+
+| # | Hipótese | Veredicto | Registro |
+|---|---|---|---|
+| 1 | `rv` do ADR 0005 estaria dominado por ruído de cotação | **refutada** | `research/findings/2026-08-03-dependencia-escala-tick.md` |
+| 2 | A dependência de tick estaria confinada ao lag 1 | **refutada** | idem |
+
+**Total: 2 testadas, 2 refutadas, 0 sobreviventes.**
+
 ## Pendência de documentação
 
 A seção 7 do `REFERENCIA-XAUUSD.md`, ressalva 2, atribui ao bid-ask bounce uma inflação de σ que a
@@ -302,6 +315,7 @@ afirmações estão refutadas por medição. `reference_parts.py` precisa de rev
 
 | Data | Máquina | Relatório |
 |---|---|---|
+| 2026-08-03 | PC-Home | [ambiente único](docs/sessions/2026-08-03-0430-ambiente-unico.md) |
 | 2026-08-03 | PC-Home | [coletor vira EA](docs/sessions/2026-08-03-0330-logger-ea.md) |
 | 2026-08-03 | PC-Home | [dependência em escala de tick](docs/sessions/2026-08-03-0100-dependencia-tick.md) |
 | 2026-08-02 | PC-Home | [documento de referência](docs/sessions/2026-08-02-2030-referencia.md) |
