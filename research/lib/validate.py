@@ -66,6 +66,32 @@ class ValidationReport:
     thin_days: list[tuple[str, int, int, str]] = field(default_factory=list)
 
     @property
+    def days_missing_unexplained(self) -> list[str]:
+        """Dias úteis ausentes que o calendário de feriados NÃO explica."""
+        from .market_calendar import classify_days
+
+        _, unknown = classify_days(self.days_missing)
+        return unknown
+
+    @property
+    def thin_days_unexplained(self) -> list[tuple[str, int, int, str]]:
+        """Dias magros que o calendário de feriados NÃO explica."""
+        from .market_calendar import is_holiday
+
+        return [t for t in self.thin_days if not is_holiday(pd.Timestamp(t[0]))]
+
+    @property
+    def coverage_explained(self) -> bool:
+        """Toda ausência e todo dia magro têm causa de calendário.
+
+        É a pergunta que separa feriado de buraco de coleta. Enquanto isto for
+        verdade, nenhum dia do dataset está sem explicação; quando deixar de
+        ser, o dia que sobrou é o que precisa ser investigado antes de entrar
+        num bloco in-sample.
+        """
+        return not self.days_missing_unexplained and not self.thin_days_unexplained
+
+    @property
     def clean(self) -> bool:
         """Nenhum defeito **estrutural**.
 
@@ -316,45 +342,69 @@ def report_markdown(rep: ValidationReport, png_rel: str | None = None) -> str:
         "",
     ]
 
+    from .market_calendar import holidays_between
+
+    cal = {}
+    if rep.ts_first is not None and rep.ts_last is not None:
+        cal = holidays_between(rep.ts_first, rep.ts_last)
+
+    lines += [
+        "## Cobertura",
+        "",
+        f"Feriados de mercado previstos pelo calendário no período: **{len(cal)}**.",
+        "Serão removidos de `curated/` (ADR 0006). `raw/` os mantém — é imutável.",
+        "",
+    ]
+
     if rep.days_missing:
+        known = [d for d in rep.days_missing if d not in rep.days_missing_unexplained]
         lines += [
-            f"## Cobertura — {len(rep.days_missing)} dia(s) útil(eis) sem nenhum tick",
+            f"### {len(rep.days_missing)} dia(s) útil(eis) sem nenhum tick",
             "",
-            "**Não é veredicto, é pergunta.** Um destes é feriado de mercado, e nesse caso a",
-            "ausência é o dado correto: o ouro não negocia na Sexta-feira Santa, no Natal nem",
-            "no Ano-Novo. Outro é buraco de coleta, e aí contamina em silêncio qualquer bloco",
-            "in-sample que o contenha. Os dois se parecem aqui; separá-los é decisão de quem",
-            "monta o teste, e precisa ser tomada olhando a lista, não ignorando-a.",
+            f"- **{len(known)}** explicados pelo calendário (fechamento total)",
+            f"- **{len(rep.days_missing_unexplained)}** sem explicação",
             "",
             "```",
-            *rep.days_missing[:60],
+            *[f"{d}  {cal.get(pd.Timestamp(d).date(), 'SEM EXPLICACAO — INVESTIGAR')}"
+              for d in rep.days_missing[:60]],
             *(["..."] if len(rep.days_missing) > 60 else []),
             "```",
             "",
         ]
-    else:
-        lines += ["## Cobertura", "", "Nenhum dia útil sem tick.", ""]
 
     if rep.thin_days:
+        n_unex = len(rep.thin_days_unexplained)
         lines += [
-            f"## Dias anormalmente magros — {len(rep.thin_days)}",
+            f"### {len(rep.thin_days)} dia(s) anormalmente magro(s)",
             "",
-            f"Comparados contra a mediana do MESMO dia da semana, não contra um limiar",
-            f"único: o domingo tem sessão parcial e roda numa ordem de grandeza abaixo de",
-            f"um pregão. Entram aqui os dias abaixo de {THIN_DAY_FRACTION:.0%} da mediana do",
-            f"seu dia da semana, ou abaixo do piso absoluto de {THIN_DAY_TICKS:,} ticks.",
+            f"Abaixo de {THIN_DAY_FRACTION:.0%} da mediana do **mesmo dia da semana**, ou do piso",
+            f"absoluto de {THIN_DAY_TICKS:,} ticks. A comparação é por dia da semana porque o",
+            "domingo tem sessão parcial e roda uma ordem de grandeza abaixo de um pregão —",
+            "um limiar único ou cega a verificação ou condena todo domingo.",
             "",
-            "Não são necessariamente defeito — meio-feriado do ouro é real. Mas nenhum",
-            "deles deve entrar num bloco de teste sem ter sido olhado.",
+            f"**{len(rep.thin_days) - n_unex}** explicados pelo calendário, **{n_unex}** sem explicação.",
             "",
-            "| Dia | Ticks | Mediana do dia da semana | Motivo |",
-            "|---|---|---|---|",
-            *[f"| {d} | {n:,} | {m:,} | {r} |" for d, n, m, r in rep.thin_days[:60]],
+            "| Dia | Ticks | Mediana do dia da semana | Motivo | Calendário |",
+            "|---|---|---|---|---|",
+            *[
+                f"| {d} | {n:,} | {m:,} | {r} | "
+                f"{cal.get(pd.Timestamp(d).date(), '**SEM EXPLICACAO**')} |"
+                for d, n, m, r in rep.thin_days[:60]
+            ],
             "",
         ]
 
-    if not rep.thin_days:
-        lines += ["## Dias anormalmente magros", "", "Nenhum.", ""]
+    if not rep.days_missing and not rep.thin_days:
+        lines += ["Nenhum dia ausente e nenhum dia magro.", ""]
+
+    if not rep.coverage_explained:
+        lines += [
+            "> **Há dia sem explicação de calendário.** Feriado e buraco de coleta se parecem",
+            "> num gráfico de ticks/dia; o calendário separa os dois por declaração, e o que",
+            "> sobra é justamente o que precisa ser investigado antes de entrar num bloco",
+            "> in-sample. Não excluir automaticamente — isso faria o buraco sumir em silêncio.",
+            "",
+        ]
 
     if png_rel:
         lines += ["## Ticks por dia", "", f"![ticks por dia]({png_rel})", ""]
@@ -366,6 +416,12 @@ def report_markdown(rep: ValidationReport, png_rel: str | None = None) -> str:
             "**Sem defeito estrutural.**"
             if rep.clean
             else "**Defeito estrutural presente — ver tabela acima.**"
+        ),
+        "",
+        (
+            "**Toda ausência tem causa de calendário.**"
+            if rep.coverage_explained
+            else "**Há ausência sem causa de calendário — investigar antes de usar.**"
         ),
         "",
         "Ausência de defeito estrutural não é atestado de qualidade do dado. Diz apenas",
