@@ -15,7 +15,7 @@
 | Branch | `main` — sessão mergeada e pushada |
 | Aberta em | 2026-08-02 |
 | Última atualização | 2026-08-02 |
-| Última sessão | `raw-4-anos` |
+| Última sessão | `feriados` |
 
 > **Se Status = ABERTA numa máquina diferente da atual:** não iniciar trabalho. Avisar o usuário,
 > mostrar máquina e horário, e perguntar se a sessão foi abandonada. Sessão abandonada é fechada
@@ -25,16 +25,19 @@
 
 ## Em andamento
 
-Nada em execução no repositório. Duas coisas rodando **fora** dele:
+Nada em execução. O download da Dukascopy terminou e `raw/` está completa.
 
-1. **Download da Dukascopy** — ver seção própria abaixo.
-2. **Nada mais.** Em particular, o `BrokerTickLogger` **não está coletando** — ver "Ação que
-   depende do usuário".
+**Nada está coletando tick do broker** — ver "Ação que depende do usuário" logo abaixo. É o único
+gargalo da camada de dados, e é o único item cujo custo cresce a cada hora parada.
 
 ## Ação que depende do usuário — urgente
 
 **`BrokerTickLogger.mq5` compila limpo mas não está rodando.** Um Script MQL5 precisa ser
 anexado a um gráfico por um humano; não há como iniciá-lo por linha de comando.
+
+**Se ele não aparecer no Navegador:** o terminal enumera `MQL5\Scripts` na inicialização, e a
+junction `Scripts\ARROW` foi criada em 2026-08-02 07:25 com o terminal já rodando desde 28/07.
+**Reiniciar o MT5** resolve. Os arquivos estão no disco — conferido pelo caminho do terminal.
 
 Para colocar em produção, no MT5 de PC-Home:
 
@@ -54,7 +57,7 @@ perdido para sempre** — a janela de retenção do broker rola.
 | Gate 1 | Escolha de T dentro da faixa de 1 a 30 barras não tem critério — ver nota abaixo |
 | Primeiro sensor | Tese mecânica não escrita (CLAUDE.md §18 passo 3) |
 | Primeiro sensor | Semântica de `confidence` no `SensorOut` não definida (CLAUDE.md §5.2) |
-| Modelo de spread, `curated/`, `bars/` | `BrokerTickLogger` não existe — sem `broker/` não há modelo |
+| Modelo de spread, `curated/`, `bars/` | `BrokerTickLogger` existe e compila, mas não está rodando — sem `broker/` não há modelo |
 | Qualquer conclusão de Gate 2 | Capital inicial e drawdown tolerado não definidos (CLAUDE.md §13) |
 | Substituição das estimativas de σ | auditoria Python sobre `raw/` não construída (CLAUDE.md §18 passo 5) |
 | Calibração de normalização de sensor | mesma auditoria |
@@ -118,6 +121,11 @@ padrão do projeto de ~1.020 (3 folds + OOS final com folga). Antes disso nem o 
 - 8 dias anormalmente magros (1% a 4% da mediana do mesmo dia da semana): todos os **Natais e
   Ano-Novos**, incluindo os observados `2022-12-26` e `2023-01-02`. Sessão encurtada, não buraco.
 
+Os 12 serão **removidos de `curated/`** (ADR 0006). `raw/` os mantém — é imutável. A validação
+cruza dia ausente/magro contra o calendário declarado em `research/lib/market_calendar.py` e
+marca como anomalia o que sobrar; hoje sobra zero. Perda de amostra: 12 dias em 1.041 (1,2%), o
+que deixa 1.029 contra o padrão de ~1.020 da §10.1 — continua satisfeito.
+
 Continuidade entre os quatro segmentos de download conferida: o CSV de 2024 termina em
 `1754006399345` e o de 2025 começa em `1754006400000` — 655 ms. Sem buraco nas emendas, o que
 importa porque o Gate 2 exige bloco out-of-sample contíguo.
@@ -141,6 +149,7 @@ Parâmetros `-bs 10 -bp 500` (§10.1). Os CSVs são descartáveis e reconstituí
 | Assunto | Onde foi decidido | ADR |
 |---|---|---|
 | Camada de dados e paridade Python/MQL5 | task brief do chat, 2026-08-02 | **0005 — escrito** |
+| Exclusão dos feriados do dataset | chat, 2026-08-02 | **0006 — escrito** |
 | Escolha de T dentro da faixa do Gate 1 | não decidido em lugar nenhum | falta debate |
 | Semântica de `confidence` | não decidido em lugar nenhum | falta debate |
 | Tese mecânica do XAUUSD M1 | não decidido em lugar nenhum | falta debate |
@@ -164,6 +173,7 @@ Parâmetros `-bs 10 -bp 500` (§10.1). Os CSVs são descartáveis e reconstituí
 
 | Data | Máquina | Relatório |
 |---|---|---|
+| 2026-08-02 | PC-Home | [exclusão dos feriados](docs/sessions/2026-08-02-1720-feriados.md) |
 | 2026-08-02 | PC-Home | [`raw/` dos quatro anos](docs/sessions/2026-08-02-1615-raw-4-anos.md) |
 | 2026-08-02 | PC-Home | [camada de dados](docs/sessions/2026-08-02-0730-camada-de-dados.md) |
 | 2026-08-02 | PC-Home | [bootstrap](docs/sessions/2026-08-02-0700-bootstrap.md) |

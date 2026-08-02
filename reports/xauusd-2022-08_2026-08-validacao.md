@@ -20,41 +20,42 @@
 | `ask < bid` | 0 | **estrutural** |
 | Preço ≤ 0 | 0 | **estrutural** |
 
-## Cobertura — 4 dia(s) útil(eis) sem nenhum tick
+## Cobertura
 
-**Não é veredicto, é pergunta.** Um destes é feriado de mercado, e nesse caso a
-ausência é o dado correto: o ouro não negocia na Sexta-feira Santa, no Natal nem
-no Ano-Novo. Outro é buraco de coleta, e aí contamina em silêncio qualquer bloco
-in-sample que o contenha. Os dois se parecem aqui; separá-los é decisão de quem
-monta o teste, e precisa ser tomada olhando a lista, não ignorando-a.
+Feriados de mercado previstos pelo calendário no período: **12**.
+Serão removidos de `curated/` (ADR 0006). `raw/` os mantém — é imutável.
+
+### 4 dia(s) útil(eis) sem nenhum tick
+
+- **4** explicados pelo calendário (fechamento total)
+- **0** sem explicação
 
 ```
-2023-04-07
-2024-03-29
-2025-04-18
-2026-04-03
+2023-04-07  Sexta-feira Santa
+2024-03-29  Sexta-feira Santa
+2025-04-18  Sexta-feira Santa
+2026-04-03  Sexta-feira Santa
 ```
 
-## Dias anormalmente magros — 8
+### 8 dia(s) anormalmente magro(s)
 
-Comparados contra a mediana do MESMO dia da semana, não contra um limiar
-único: o domingo tem sessão parcial e roda numa ordem de grandeza abaixo de
-um pregão. Entram aqui os dias abaixo de 20% da mediana do
-seu dia da semana, ou abaixo do piso absoluto de 1,000 ticks.
+Abaixo de 20% da mediana do **mesmo dia da semana**, ou do piso
+absoluto de 1,000 ticks. A comparação é por dia da semana porque o
+domingo tem sessão parcial e roda uma ordem de grandeza abaixo de um pregão —
+um limiar único ou cega a verificação ou condena todo domingo.
 
-Não são necessariamente defeito — meio-feriado do ouro é real. Mas nenhum
-deles deve entrar num bloco de teste sem ter sido olhado.
+**8** explicados pelo calendário, **0** sem explicação.
 
-| Dia | Ticks | Mediana do dia da semana | Motivo |
-|---|---|---|---|
-| 2022-12-26 | 2,505 | 208,485 | 1% da mediana de Monday |
-| 2023-01-02 | 4,650 | 208,485 | 2% da mediana de Monday |
-| 2023-12-25 | 1,993 | 208,485 | 1% da mediana de Monday |
-| 2024-01-01 | 2,220 | 208,485 | 1% da mediana de Monday |
-| 2024-12-25 | 1,754 | 219,334 | 1% da mediana de Wednesday |
-| 2025-01-01 | 2,093 | 219,334 | 1% da mediana de Wednesday |
-| 2025-12-25 | 9,779 | 224,895 | 4% da mediana de Thursday |
-| 2026-01-01 | 7,245 | 224,895 | 3% da mediana de Thursday |
+| Dia | Ticks | Mediana do dia da semana | Motivo | Calendário |
+|---|---|---|---|---|
+| 2022-12-26 | 2,505 | 208,485 | 1% da mediana de Monday | Natal |
+| 2023-01-02 | 4,650 | 208,485 | 2% da mediana de Monday | Ano-Novo |
+| 2023-12-25 | 1,993 | 208,485 | 1% da mediana de Monday | Natal |
+| 2024-01-01 | 2,220 | 208,485 | 1% da mediana de Monday | Ano-Novo |
+| 2024-12-25 | 1,754 | 219,334 | 1% da mediana de Wednesday | Natal |
+| 2025-01-01 | 2,093 | 219,334 | 1% da mediana de Wednesday | Ano-Novo |
+| 2025-12-25 | 9,779 | 224,895 | 4% da mediana de Thursday | Natal |
+| 2026-01-01 | 7,245 | 224,895 | 3% da mediana de Thursday | Ano-Novo |
 
 ## Ticks por dia
 
@@ -63,6 +64,8 @@ deles deve entrar num bloco de teste sem ter sido olhado.
 ## Veredicto
 
 **Sem defeito estrutural.**
+
+**Toda ausência tem causa de calendário.**
 
 Ausência de defeito estrutural não é atestado de qualidade do dado. Diz apenas
 que o arquivo é internamente consistente; se ele representa o mercado é outra

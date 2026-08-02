@@ -119,10 +119,18 @@ def main() -> int:
     log.info("gráfico:   %s", png)
     log.info("série:     %s", csv_out)
 
+    rc = 0
     if not rep.clean:
         log.error("DEFEITO ESTRUTURAL — ver %s", md)
-        return 2
-    return 0
+        rc = 2
+    if not rep.coverage_explained:
+        log.error(
+            "COBERTURA SEM EXPLICAÇÃO: %d dia(s) ausente(s) e %d magro(s) fora do calendário",
+            len(rep.days_missing_unexplained),
+            len(rep.thin_days_unexplained),
+        )
+        rc = max(rc, 3)
+    return rc
 
 
 if __name__ == "__main__":
