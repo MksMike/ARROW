@@ -10,12 +10,12 @@
 
 | Campo | Valor |
 |---|---|
-| Status | `ABERTA` |
+| Status | `FECHADA` |
 | Máquina | PC-Home |
-| Branch | `session/2026-08-03-laboratorio` |
+| Branch | `main` — sessao mergeada e pushada |
 | Aberta em | 2026-08-02 |
 | Última atualização | 2026-08-03 |
-| Última sessão | `laboratorio` (em curso) |
+| Última sessão | `laboratorio` |
 
 > **Se Status = ABERTA numa máquina diferente da atual:** não iniciar trabalho. Avisar o usuário,
 > mostrar máquina e horário, e perguntar se a sessão foi abandonada. Sessão abandonada é fechada
@@ -267,6 +267,8 @@ Parâmetros `-bs 10 -bp 500` (§10.1). Os CSVs são descartáveis e reconstituí
 | Assunto | Onde foi decidido | ADR |
 |---|---|---|
 | ~~Ambiente único~~ | usuário, 2026-08-03 | **0009 — escrito** |
+| ~~Laboratório e papéis de subagente~~ | usuário, 2026-08-03 | **0010 — escrito** |
+| Correção para testes múltiplos por PROJETO, não só por sensor | dívida do ADR 0010 | falta debate |
 | Camada de dados e paridade Python/MQL5 | task brief do chat, 2026-08-02 | **0005 — escrito** |
 | Foco único em XAUUSDm | chat, 2026-08-02 | **0007 — escrito** |
 | Exclusão dos feriados do dataset | chat, 2026-08-02 | **0006 — escrito** |
@@ -315,6 +317,7 @@ afirmações estão refutadas por medição. `reference_parts.py` precisa de rev
 
 | Data | Máquina | Relatório |
 |---|---|---|
+| 2026-08-03 | PC-Home | [o laboratório](docs/sessions/2026-08-03-0500-laboratorio.md) |
 | 2026-08-03 | PC-Home | [ambiente único](docs/sessions/2026-08-03-0430-ambiente-unico.md) |
 | 2026-08-03 | PC-Home | [coletor vira EA](docs/sessions/2026-08-03-0330-logger-ea.md) |
 | 2026-08-03 | PC-Home | [dependência em escala de tick](docs/sessions/2026-08-03-0100-dependencia-tick.md) |

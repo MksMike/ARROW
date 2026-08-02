@@ -98,6 +98,12 @@ removendo ticks fora das sessões da Exness.
 commit. Depois disso `curated/` é dado, não processo. Reconstruir com a mesma semente deve
 produzir bytes idênticos — verificado por hash e reportado.
 
+> **EMENDADO pelo ADR 0010 (2026-08-03):** as sete primitivas que não dependem de spread são
+> construídas direto de `raw/`. `spread_p50` e `spread_p95` ficam nulas até `spread/` existir.
+> O Gate 1 é explicitamente "sem execução" e nunca exigiu spread; amarrar `bars/` inteira a
+> `curated/` bloqueava o primeiro sensor por semanas sem necessidade. O resto deste ADR continua
+> valendo.
+
 **`bars/`** — M1 derivado de `curated/`. Contém apenas **primitivas caras de recalcular a partir
 de ticks**, nunca features derivadas. Motivo da separação: `bars/` fica estável enquanto a
 pesquisa itera; razões de variância, normalizações e estatísticas móveis são calculadas em
