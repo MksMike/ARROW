@@ -110,10 +110,10 @@ def main() -> int:
     V.plot_ticks_per_day_from_counts(counts, png, title=f"Ticks por dia — {slug}")
 
     md = reports / f"{slug}-validacao.md"
-    md.write_text(V.report_markdown(rep, png_rel=png.name), encoding="utf-8")
+    md.write_text(V.report_markdown(rep, png_rel=png.name), encoding="utf-8", newline="\n")
 
     csv_out = reports / f"{slug}-ticks-por-dia.csv"
-    counts.to_csv(csv_out)
+    counts.to_csv(csv_out, lineterminator="\n")
 
     log.info("relatório: %s", md)
     log.info("gráfico:   %s", png)

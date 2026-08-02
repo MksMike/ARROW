@@ -109,15 +109,15 @@ def main() -> int:
     by_sess_recent = S.sigma_by_session(rets_recent)
     by_hour_recent = S.sigma_by_bucket(rets_recent, "hour")
 
-    by_hour.to_csv(reports / "sigma-por-hora.csv")
-    by_hour_recent.to_csv(reports / f"sigma-por-hora-{recent_year}.csv")
-    by_year.to_csv(reports / "sigma-por-ano.csv")
-    by_ys.to_csv(reports / "sigma-ano-x-sessao.csv")
+    by_hour.to_csv(reports / "sigma-por-hora.csv", lineterminator="\n")
+    by_hour_recent.to_csv(reports / f"sigma-por-hora-{recent_year}.csv", lineterminator="\n")
+    by_year.to_csv(reports / "sigma-por-ano.csv", lineterminator="\n")
+    by_ys.to_csv(reports / "sigma-ano-x-sessao.csv", lineterminator="\n")
 
     _plot(by_hour, by_hour_recent, recent_year, reports / "sigma-por-hora.png")
 
     md = _report(rets, stats, by_hour, by_year, by_sess, by_sess_recent, by_ys, recent_year)
-    (reports / "sigma-auditoria.md").write_text(md, encoding="utf-8")
+    (reports / "sigma-auditoria.md").write_text(md, encoding="utf-8", newline="\n")
 
     log.info("relatório: %s", reports / "sigma-auditoria.md")
     return 0
