@@ -728,16 +728,42 @@ partida.
 ### 13.2 Onde a sessão entra
 
 A sessão não altera o custo. Altera **quanto tempo leva para R ficar grande o bastante**, já que
-R alcançável ≈ σ√T. Estimativas preliminares (ouro ~$4.050), a substituir por medição:
+R alcançável ≈ σ√T.
 
-| | R=$1 (exige 10 pp) | R=$3 (exige 3,3 pp) |
-|---|---|---|
-| Asiático (σ≈0,50) | ~4 min | ~36 min |
-| Londres (σ≈1,20) | ~0,7 min | ~6 min |
-| Sobreposição LDN/NY (σ≈2,20) | ~0,2 min | ~2 min |
+**Medido**, não estimado: `research/audit_sigma.py` sobre 1.380.142 barras M1 dos quatro anos de
+`raw/`, com máscara de sessão e feriados aplicados. Relatório em `reports/sigma-auditoria.md`.
+σ é o desvio-padrão da variação de preço em uma barra M1, em USD/oz, sobre o bid.
 
-Nenhuma sessão é proibida. A asiática é ~3× mais exigente em edge para o mesmo tempo de
-exposição, não inviável.
+**Valores de 2026** (ouro ~$4.597) — `T = (R/σ)²`:
+
+| Sessão (UTC) | σ medida | R=$1 (exige 10 pp) | R=$3 (exige 3,3 pp) | R=$5 (exige 2 pp) |
+|---|---|---|---|---|
+| Asiático 00–07 | **2,50** | 0,2 min | 1,4 min | 4,0 min |
+| Londres 07–12 | **2,25** | 0,2 min | 1,8 min | 5,0 min |
+| Sobreposição LDN/NY 12–16 | **3,32** | 0,1 min | 0,8 min | 2,3 min |
+| Nova York 16–21 | **2,42** | 0,2 min | 1,5 min | 4,3 min |
+
+**A afirmação de que a asiática é ~3× mais exigente está morta.** Ela exigia σ da asiática ~3×
+menor que a da sobreposição. A razão medida subiu de forma monótona ao longo da janela — 0,42 em
+2022, 0,43, 0,52, 0,71, **0,75 em 2026** — e o perfil intradiário achatou. Em 2026 a hora **1
+UTC** (09:00 em Pequim, abertura da Shanghai Gold Exchange) é a segunda hora mais volátil do dia
+inteiro. Em 2023 o mesmo código dá o perfil clássico, com pico na sobreposição: a mudança está no
+mercado, não na medição.
+
+**σ em dólares triplicou em dois anos**, de 0,586 em 2024 para 2,594 em 2026 — mas em pontos-base
+do preço subiu bem menos, de 2,46 para 5,64 bps. Boa parte do salto é nível de preço, não regime.
+Toda tabela em dólares tem prazo de validade e **deve ser remedida quando o ouro mudar de
+patamar**; a série por ano está em `reports/sigma-ano-x-sessao.csv`.
+
+**Ressalva contra otimismo.** `σ√T` supõe passeio aleatório sem deriva nem reversão, e a σ acima é
+de fechamento a fechamento no M1 — portanto **contaminada por bid-ask bounce**, que infla σ sem
+representar movimento aproveitável. Os tempos da tabela são, por construção, o **melhor caso**. O
+alcance real em T minutos é menor, e quanto menor é pergunta em aberto até `bars/` existir e
+permitir medir o range efetivo.
+
+Nenhuma sessão é proibida. Com σ ≈ 2,5 em qualquer sessão, alvos de $3 a $5 líquidos — que exigem
+apenas 3,3 pp e 2 pp de acerto direcional (§13.1) — são alcançáveis em 1 a 5 minutos. Isso é
+materialmente mais favorável do que as estimativas antigas sugeriam.
 
 Ordem limitada na entrada é a única forma de não pagar o spread — ao custo de seleção adversa.
 Linha futura, fora do escopo atual.
@@ -882,11 +908,10 @@ segmentos anuais de 2025 para 2022 (§10.1).
    justamente para punir busca cega.
 4. `research/lib/` — conversão Dukascopy CSV → Parquet particionado por mês, carregamento,
    custos, block bootstrap, IC
-5. **Auditoria em Python sobre `raw/`** — antes de qualquer busca de sinal:
-   - Contagem de ticks por dia, com gráfico. Buraco de dois dias dentro de um bloco in-sample
-     contamina em silêncio
-   - **σ por minuto, por bucket de hora** — substitui as estimativas preliminares das §13.1/13.2
-   - Densidade de tick por sessão
+5. ~~**Auditoria em Python sobre `raw/`**~~ — **feita** em 2026-08-02.
+   `research/audit_sigma.py` e `research/build_raw.py`; relatórios em `reports/`. A §13.2 passou
+   a conter medição, não estimativa, e a premissa de que a sessão asiática é ~3× mais exigente
+   foi refutada. Falta ainda a densidade de tick por sessão.
 6. **`Scripts/ARROW/DataAudit.mq5`** — o equivalente do lado do broker:
    - `SYMBOL_DIGITS`, `SYMBOL_TRADE_TICK_VALUE`, `SYMBOL_TRADE_CONTRACT_SIZE`, `SYMBOL_POINT`
    - Distribuição de spread real por hora × faixa de volatilidade — média **e caudas**
