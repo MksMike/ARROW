@@ -11,11 +11,12 @@
 | [0002](0002-contrato-do-sensor.md) | Contrato do sensor: `SensorOut` e normalização contra o nulo | aceito | chat 2026-08-02 |
 | [0003](0003-custo-como-exigencia-de-edge.md) | Custo como exigência de edge: `c/(2R)` | aceito | chat 2026-08-02 |
 | [0004](0004-repositorio-publico-dados-fora-do-repo.md) | Repositório público, dados fora do repositório | aceito | chat 2026-08-02 |
-| [0005](0005-camada-de-dados-e-paridade.md) | Camada de dados e paridade Python ↔ MQL5 | aceito | chat 2026-08-02 |
+| [0005](0005-camada-de-dados-e-paridade.md) | Camada de dados e paridade Python ↔ MQL5 | aceito, **emendado por 0010** | chat 2026-08-02 |
 | [0006](0006-feriados-excluidos-do-dataset.md) | Feriados de mercado excluídos do dataset | aceito | chat 2026-08-02 |
 | [0007](0007-foco-unico-em-xauusd.md) | Foco único em XAUUSDm até existir catálogo validado | aceito | chat 2026-08-02 |
 | [0008](0008-coletor-de-tick-como-ea.md) | O coletor de tick é Expert Advisor, não Script | aceito | Code, 2026-08-03 |
 | [0009](0009-ambiente-unico.md) | Ambiente único: debate e implementação no mesmo lugar | aceito | usuário, 2026-08-03 |
+| [0010](0010-laboratorio-e-papeis.md) | O laboratório: ADR restringe forma, não fecha pergunta | aceito | usuário, 2026-08-03 |
 
 ## Pendentes de ADR
 
