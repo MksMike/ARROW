@@ -17,6 +17,7 @@
 | [0008](0008-coletor-de-tick-como-ea.md) | O coletor de tick é Expert Advisor, não Script | aceito | Code, 2026-08-03 |
 | [0009](0009-ambiente-unico.md) | Ambiente único: debate e implementação no mesmo lugar | aceito | usuário, 2026-08-03 |
 | [0010](0010-laboratorio-e-papeis.md) | O laboratório: ADR restringe forma, não fecha pergunta | aceito | usuário, 2026-08-03 |
+| [0011](0011-excecoes-com-escopo.md) | Exceção com escopo: um ADR pode não valer para um componente | aceito | usuário, 2026-08-03 |
 
 ## Pendentes de ADR
 
@@ -34,6 +35,15 @@ A revisão do `CLAUDE.md` de 2026-08-02 removeu a fórmula `T_min = (c/kσ)²` d
 não fechou a pendência** — apagou a derivação sem substituí-la. A pergunta que ela fazia, em que
 horizonte medir o IC, segue aberta, e "1 a 30 barras" é faixa de busca, não critério de escolha.
 Permanece na lista.
+
+## Exceções em vigor
+
+Toda exceção a um ADR entra aqui, com o componente que a usa (ADR 0011). Contador por ADR
+exceptuado: **três disparam revisão obrigatória da regra — para o ADR 0002, duas.**
+
+| Exceção | Exceptua | Componente | Contador |
+|---|---|---|---|
+| — | — | — | nenhuma em vigor |
 
 ## Convenção
 
