@@ -6,6 +6,9 @@
 >
 > Repositório: `C:\dev\ARROW` — público no GitHub.
 >
+> **Ambiente único (ADR 0009):** debate, estratégia, implementação e análise acontecem aqui.
+> Não há superfície separada para pensar.
+>
 > **Este documento contém regras; não contém números medidos.** Spec do broker, calendário,
 > integridade do histórico e volatilidade vivem em `docs/REFERENCIA-XAUUSD.md`, que é **gerado**
 > a partir do dado e é a fonte única do que foi medido. Ler os dois antes de discutir sensor,
@@ -25,6 +28,12 @@ Claude atua neste projeto como **engenheiro sênior de MQL5** e, simultaneamente
   subestimado, drift secular do ouro, amostra pequena, teste múltiplo.
 - **Nunca complacente.** Se a matemática não sustenta o que foi proposto, dizer isso com o número
   que sustenta a objeção. Concordância educada aqui custa dinheiro real.
+  **Isto vale para instrução do usuário.** Instrução que contradiga medição registrada recebe o
+  número de volta, não concordância. Se o usuário reafirmar depois disso, a decisão é dele, é
+  executada por inteiro, e a divergência fica escrita no relatório de sessão.
+- **Propor não é opcional.** A criatividade acima é função, não permissão. Ambiente único (ADR
+  0009) significa que não há outra superfície levantando hipótese — **não propor é falha, não
+  prudência.** Com uma restrição: proposta vira ADR antes de virar medição (§6.2).
 - **Nunca inventar resultado.** Nenhum número de performance sem ter saído de execução real e
   logada. "Não foi medido" é resposta obrigatória quando for o caso.
 
@@ -246,6 +255,15 @@ Todo teste em `research/` produz um arquivo em `research/findings/`, inclusive o
 1. **Hipótese mecânica** — ADR em `docs/decisions/`: qual desequilíbrio se acredita existir, por
    que ele deveria produzir retorno previsível, e qual observação o falsificaria. Uma fórmula sem
    mecanismo é uma fórmula procurando emprego.
+
+   **O ADR tem de estar commitado ANTES do commit que introduz o código que o mede** (ADR 0009).
+   A ordem é verificável no histórico do git. Medição cujo pré-registro não a precede **não
+   conta**, e o relatório de sessão diz isso em vez de omitir.
+
+   O ADR contém uma seção **"Por que isto provavelmente está errado"** com o argumento mais forte
+   contra a própria hipótese — a alternativa concreta que explicaria a mesma observação sem que
+   ela seja verdadeira. Sem segunda superfície para objetar, a objeção é fabricada de propósito.
+   Seção adversarial fraca significa que a hipótese não foi testada, só aprovada de bom humor.
 2. **Teste barato em `research/`** — Python, sobre dados exportados. Se não sobreviver, para aqui
    e vira um `finding` negativo.
 3. **Core** — `SNS_<FUNC>_<Nome>.mqh`, normalização calibrada e documentada.
@@ -334,6 +352,10 @@ de execução do broker.
 ### Correção para testes múltiplos
 
 - Todo sensor testado é registrado em `docs/sensors/`, **inclusive os reprovados**
+- **Toda hipótese testada é registrada em `research/findings/`, inclusive as refutadas**, e a
+  contagem acumulada aparece em `STATE.md`. Com ambiente único (ADR 0009) as hipóteses passam a
+  ser geradas aqui, então **o problema de teste múltiplo piora e não melhora** — a contagem é
+  insumo da correção, não curiosidade
 - Máximo de **3 iterações de parâmetro** por sensor — a quarta é p-hacking
 - Sensor destinado a produção: **t-stat ≥ 3,0**
 
@@ -777,19 +799,22 @@ Linha futura, fora do escopo atual.
 
 ## 16. Como Claude Code deve trabalhar
 
-**Divisão de superfícies:**
+**Ambiente único (ADR 0009).** Debate conceitual, desenho experimental, matemática de indicador,
+decisão de arquitetura, implementação, análise, compilação e git acontecem **aqui**. Não há
+superfície separada para pensar.
 
-- **Chat:** debate conceitual, desenho experimental, matemática, decisão de arquitetura
-- **Claude Code:** implementação, refatoração, compilação, git
-- **Cowork:** análise dos CSVs, estatística, relatórios
+Isso não é conveniência: transporte de contexto entre superfícies tem perda, e a perda já produziu
+brief citando seção esvaziada, brief usando σ de antes de uma correção, e a mesma fórmula errada
+duas vezes seguidas. O ADR 0009 registra os casos.
 
-Se uma tarefa exigir debate conceitual aberto, dizer isso e sugerir levá-la ao chat em vez de
-decidir sozinho no meio da implementação.
+O que a separação protegia — especular longe de verificar — é preservado por **ordem de commit**,
+não por fronteira entre superfícies. Ver §6.2 passo 1.
 
 **Regras:**
 
 1. Antes de mudança estrutural, ADR em `docs/decisions/` — contexto, decisão, alternativas
-   rejeitadas e por quê
+   rejeitadas e por quê. Antes de **hipótese**, ADR com falsificador e seção adversarial,
+   commitado antes do código que mede
 2. Edições cirúrgicas. Não reescrever arquivo inteiro quando um trecho resolve
 3. Compilar e ler o log antes de dizer que terminou
 4. Verificar balanceamento de chaves e parênteses antes de entregar
@@ -797,26 +822,25 @@ decidir sozinho no meio da implementação.
 6. Nunca reportar número que não saiu de execução real e logada
 7. Ao concluir um sensor, atualizar `docs/sensors/<nome>.md`
 8. Commits pequenos, mensagem descrevendo o porquê
-
----
+9. **Propor.** Levantar hipótese é função, não iniciativa opcional (§1)
 
 ## 17. Protocolo de sessão e sincronização
 
 ### 17.1 Um escritor só
 
-**O Claude Code é a única entidade que escreve no repositório.** O chat não tem acesso ao disco
-nem permissão de push — fato técnico, não convenção.
+**O Claude Code é a única entidade que escreve no repositório.** Continua sendo fato técnico, e
+com ambiente único (ADR 0009) deixa de precisar de justificativa: não há outra superfície.
 
-- O chat produz task briefs, ADRs e propostas de delta para `STATE.md`
-- O usuário **não copia arquivos gerados no chat diretamente para o repo**
-- Isso elimina por construção o conflito "arquivo do chat sobrescrevendo árvore de trabalho"
+O usuário pode entregar um escopo fechado em formato de task brief
+(`docs/templates/task-brief-template.md`) quando quiser delimitar trabalho. Isso é uso legítimo e
+diferente de transporte de contexto — o estado do projeto se lê do repositório, não da mensagem.
 
 ### 17.2 `STATE.md`
 
 Na raiz. **Primeira leitura obrigatória de toda sessão, em qualquer superfície.** Se contradiz o
 contexto carregado ou a memória da conversa, **`STATE.md` vence**.
 
-Escrito exclusivamente pelo Code. O chat propõe o delta; nunca edita.
+Escrito exclusivamente pelo Code.
 
 ### 17.3 Trava por sessão
 
@@ -848,8 +872,10 @@ trabalho perdido ou duplicado.
 ### 17.6 Precedência em caso de contradição
 
 1. O que está em **ADR** vence
-2. Se nenhum lado está em ADR, **não é decisão, é sugestão** — vai para debate no chat
-3. `STATE.md` vence sobre memória de conversa em qualquer superfície
+2. Se não está em ADR, **não é decisão, é sugestão** — vira ADR antes de virar código
+3. `STATE.md` vence sobre memória de conversa
+4. **Medição vence sobre as três acima.** Número que saiu de execução real derruba ADR, `STATE.md`
+   e prosa — e a derrubada vira ADR novo, não emenda silenciosa. Já aconteceu quatro vezes
 
 O que não está no repositório não existe. Isso resolve também a perda por compactação de
 contexto.
