@@ -10,12 +10,12 @@
 
 | Campo | Valor |
 |---|---|
-| Status | `FECHADA` |
+| Status | `ABERTA` |
 | Máquina | PC-Home |
-| Branch | `main` — sessao mergeada e pushada |
+| Branch | `session/2026-08-03-excecoes` |
 | Aberta em | 2026-08-02 |
 | Última atualização | 2026-08-03 |
-| Última sessão | `laboratorio` |
+| Última sessão | `excecoes` (em curso) |
 
 > **Se Status = ABERTA numa máquina diferente da atual:** não iniciar trabalho. Avisar o usuário,
 > mostrar máquina e horário, e perguntar se a sessão foi abandonada. Sessão abandonada é fechada
