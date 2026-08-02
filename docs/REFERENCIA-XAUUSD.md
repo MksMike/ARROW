@@ -179,6 +179,45 @@ Próximos feriados (2026–2027):
 | 2027-03-26 | Sexta-feira Santa |
 | 2027-12-24 | Natal |
 
+### Em horário local do operador
+
+**Nada disto entra no dado.** Todo timestamp do projeto é UTC e a conversão acontece
+apenas na borda de apresentação. Esta tabela existe para não agendar as coisas erradas.
+
+O operador está em **JST = UTC+9**, e o Japão **não observa
+horário de verão** — o offset é constante o ano inteiro. Mas **a sessão do símbolo desliza
+com o DST americano**, então os horários locais dos eventos mudam uma hora entre as
+estações. As duas coisas são independentes.
+
+| Evento | UTC (verão) | Local (verão) | UTC (inverno) | Local (inverno) |
+|---|---|---|---|---|
+| Abertura da semana (domingo) | 22:01 | **07:01 (+1d) seg** | 23:01 | **08:01 (+1d) seg** |
+| Início da parada diária | 20:58 | 05:58 (+1d) | 21:58 | 06:58 (+1d) |
+| Reabertura diária | 22:00 | 07:00 (+1d) | 23:00 | 08:00 (+1d) |
+| Fechamento de sexta | 20:58 | **05:58 (+1d) sáb** | 21:58 | **06:58 (+1d) sáb** |
+
+Para quem está no Japão, a semana começa por volta das **07:00 de segunda** e a parada
+diária cai de madrugada para o começo da manhã. Não é preciso estar acordado na virada: o
+`BrokerTickLogger` fica ocioso em laço e retoma sozinho.
+
+### As sessões em horário local
+
+| Sessão | UTC | Local |
+|---|---|---|
+| Asiático | 00–07 | 09–16 |
+| Londres | 07–12 | 16–21 |
+| Sobreposição LDN/NY | 12–16 | 21–01 |
+| Nova York | 16–21 | 01–06 |
+
+Os dois picos de volatilidade de 2026 caem em horários bem diferentes para o operador: a
+hora **15 UTC** (a mais volátil) é **00:00 local**, e a hora **1 UTC**
+— abertura da Shanghai Gold Exchange, a segunda mais volátil — é **10:00
+local**, em plena manhã de dia útil no Japão.
+
+> **Consequência de método, não de conveniência:** se um sensor ou filtro vier a usar hora,
+> ele usa **hora de servidor (UTC)**. Hora local do operador não é propriedade do mercado e
+> não pode entrar em `.mqh` nem em `research/`. Ela existe só nesta tabela.
+
 ## 4. O histórico — `data/raw/`
 
 Ticks da **Dukascopy**, convertidos para Parquet particionado por mês. É o dado de
