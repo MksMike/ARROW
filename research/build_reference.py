@@ -60,9 +60,48 @@ ENUMS = {
     "swap_mode": {"0": "desabilitado", "1": "em pontos", "2": "moeda base", "3": "juros", "4": "moeda de margem"},
 }
 
+# Campos que o MQL5 devolve como máscara de bits, não como valor único.
+BITMASKS = {
+    "filling_mode": {1: "FOK (tudo ou nada)", 2: "IOC (tudo ou parcial)", 4: "BOC (passivo)"},
+    "expiration_mode": {1: "GTC", 2: "DAY", 4: "data específica", 8: "dia específico"},
+    "order_mode": {
+        1: "mercado", 2: "limit", 4: "stop", 8: "stop-limit",
+        16: "SL", 32: "TP", 64: "close-by",
+    },
+}
+
+
+def _fmt_bits(v: str | None, campo: str) -> str:
+    if v is None:
+        return "—"
+    try:
+        n = int(v)
+    except ValueError:
+        return v
+    partes = [rot for bit, rot in BITMASKS[campo].items() if n & bit]
+    return f"`{n}` — " + (", ".join(partes) if partes else "nenhum")
+
 
 def _read(path: Path, **kw) -> pd.DataFrame:
     return pd.read_csv(path, **kw) if path.exists() else pd.DataFrame()
+
+
+
+def _ultimo_bid_broker() -> float | None:
+    """Último bid que o `BrokerTickLogger` gravou em `data/broker/`.
+
+    A margem lida do servidor foi calculada ao preço corrente, então a
+    alavancagem derivada tem de usar esse mesmo preço. Usar a mediana do ano
+    daria um número errado por construção.
+    """
+    arquivos = sorted((REPO / "data" / "broker").glob("XAUUSDm-*.csv"))
+    if not arquivos:
+        return None
+    try:
+        df = pd.read_csv(arquivos[-1])
+        return float(df["bid"].iloc[-1]) if len(df) else None
+    except Exception:
+        return None
 
 
 def _spec_map(spec: pd.DataFrame, sym: str) -> dict[str, str]:
@@ -132,6 +171,19 @@ def _sec_instrumento(sm: dict, geral: dict) -> list[str]:
         "disponível. O custo disso é slippage, que **não** aparece em backtest e só o Gate 4",
         "mede (`CLAUDE.md` §7).",
         "",
+        "### Ordens aceitas",
+        "",
+        "| Campo | Valor |",
+        "|---|---|",
+        f"| Tipos de ordem | {_fmt_bits(sm.get('order_mode'), 'order_mode')} |",
+        f"| Políticas de preenchimento | {_fmt_bits(sm.get('filling_mode'), 'filling_mode')} |",
+        f"| Modos de validade | {_fmt_bits(sm.get('expiration_mode'), 'expiration_mode')} |",
+        "",
+        "Todos os tipos de ordem estão liberados, incluindo **SL e TP anexados**, que combinados com",
+        "nível de stops zero permitem stops apertados sem restrição técnica. Ordem limitada está",
+        "disponível — é a única forma de não pagar o spread, ao custo de seleção adversa, e está",
+        "registrada como linha futura.",
+        "",
         "O projeto mede **este instrumento e mais nenhum** até existir catálogo de sensores",
         "validados (ADR 0007). `XAUUSDz`, BTCUSD, outras contas e outras corretoras entram numa",
         "bateria posterior, com ADR próprio declarando a correção para testes múltiplos.",
@@ -173,7 +225,7 @@ def _sec_spec(sm: dict) -> list[str]:
         "",
         "| Campo | Valor | Unidade |",
         "|---|---|---|",
-        row("Spread", "spread_float"),
+        f"| Spread | {'flutuante' if sm.get('spread_float') == 'true' else 'fixo'} | — |",
         row("Nível de stops", "stops_level", "points"),
         row("Nível de freeze", "freeze_level", "points"),
         row("Volume mínimo", "volume_min", "lotes"),
@@ -214,8 +266,8 @@ def _sec_spec(sm: dict) -> list[str]:
         try:
             implied = float(lucro) / 100.0
             L += [
-                f"Os dois primeiros saem de caminhos independentes — `SYMBOL_TRADE_TICK_VALUE` e",
-                f"`OrderCalcProfit` — e batem: 1.000 ticks × {float(tv):.4f} = {float(tv) * 1000:,.1f}.",
+                "Os dois primeiros saem de caminhos independentes — `SYMBOL_TRADE_TICK_VALUE` e",
+                f"`OrderCalcProfit` — e batem: 1.000 × {float(tv):.4f} = {float(tv) * 1000:,.1f}.",
                 f"Isso implica **USDJPY ≈ {implied:.2f}** e fecha a conta de sizing na moeda da conta.",
                 "",
                 "**Consequência da conta em JPY com lucro em USD:** R é adimensional e imune à",
@@ -225,6 +277,35 @@ def _sec_spec(sm: dict) -> list[str]:
             ]
         except ValueError:
             pass
+
+    # Alavancagem derivada, para não depender de premissa: valor de contrato em
+    # ienes dividido pela margem exigida. O preço vem do último tick que o
+    # BrokerTickLogger gravou — a margem foi medida ao preço corrente, então
+    # usar a mediana do ano daria alavancagem errada.
+    preco = _ultimo_bid_broker()
+    try:
+        tickv = float(sm["trade_tick_value"])
+        ticksz = float(sm["trade_tick_size"])
+        contrato = float(sm["trade_contract_size"])
+        margem = float(sm["margem_1lote_compra"])
+        # JPY por 1 USD/oz de movimento, em 1 lote:
+        jpy_por_usd_oz = tickv / ticksz
+        usdjpy = jpy_por_usd_oz / contrato
+        if preco is None:
+            return L
+        valor_contrato_jpy = contrato * preco * usdjpy
+        alav = valor_contrato_jpy / margem
+        L += [
+            f"**Alavancagem derivada: 1:{alav:,.0f}.** Valor de contrato de {contrato:.0f} oz a",
+            f"${preco:,.2f} convertido a USDJPY ≈ {usdjpy:.2f} dá ¥{valor_contrato_jpy:,.0f}, contra",
+            f"margem de ¥{margem:,.0f}. Não é premissa — sai da divisão de dois campos medidos.",
+            "",
+            "**Margem não é restrição, e o broker não oferece proteção alguma.** Todo controle de",
+            "risco vive na EA. **Stop obrigatório em toda ordem, sem exceção.**",
+            "",
+        ]
+    except (KeyError, ValueError, ZeroDivisionError):
+        pass
 
     return L
 
@@ -282,11 +363,31 @@ def _sec_calendario(sessions: pd.DataFrame, breaks: pd.DataFrame) -> list[str]:
             "",
         ]
     else:
-        L += ["Lidas do servidor. Horários da configuração vigente na leitura:", "",
-              "| Dia | Tipo | Janela |", "|---|---|---|"]
-        for _, r in sessions.iterrows():
-            L.append(f"| {r['dia']} | {r['tipo']} | {r['de']}–{r['ate']} |")
-        L.append("")
+        L += [
+            "**Lidas do servidor** por `SymbolInfoSessionQuote` / `SymbolInfoSessionTrade`, não",
+            "transcritas. Configuração vigente na leitura — verão americano; no inverno tudo",
+            "desloca +1 hora.",
+            "",
+            "| Dia | Cotação | Negociação |",
+            "|---|---|---|",
+        ]
+        sym = sessions["symbol"].iloc[0]
+        part = sessions[sessions["symbol"] == sym]
+        for dia in ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"]:
+            d = part[part["dia"] == dia]
+            if d.empty:
+                L.append(f"| {dia} | fechado | fechado |")
+                continue
+            cot = ", ".join(f"{r['de']}–{r['ate']}" for _, r in d[d["tipo"] == "cotacao"].iterrows())
+            neg = ", ".join(f"{r['de']}–{r['ate']}" for _, r in d[d["tipo"] == "negociacao"].iterrows())
+            L.append(f"| {dia} | {cot or 'fechado'} | {neg or 'fechado'} |")
+        L += [
+            "",
+            "**Cotação e negociação abrem juntas** em todos os dias — não há janela em que o preço",
+            "se move sem que se possa operar. A máscara em `research/lib/sessions.py` implementa",
+            "exatamente este cronograma, com a regra de DST.",
+            "",
+        ]
 
     hoje = dt.date.today()
     cal = holidays_between(dt.date(hoje.year, 1, 1), dt.date(hoje.year + 1, 12, 31))

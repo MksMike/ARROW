@@ -28,19 +28,32 @@ Três regras de leitura:
 | Campo | Valor |
 |---|---|
 | Símbolo | **`XAUUSDm`** |
-| Descrição | — |
-| Caminho | `—` |
+| Descrição | Gold vs US Dollar |
+| Caminho | `Standard\Forex\XAUUSDm` |
 | Corretora / conta | Exness, Standard |
 | Moeda de lucro | USD |
 | Moeda de margem | XAU |
 | Moeda da conta | **JPY** |
-| Modo de cálculo | — |
-| Modo de negociação | — |
-| Execução | — |
+| Modo de cálculo | `0` — Forex |
+| Modo de negociação | `4` — acesso completo |
+| Execução | `2` — Market (a mercado, sem requote — slippage possível) |
 
 **Execução a mercado** significa que não há requote: a ordem preenche ao preço
 disponível. O custo disso é slippage, que **não** aparece em backtest e só o Gate 4
 mede (`CLAUDE.md` §7).
+
+### Ordens aceitas
+
+| Campo | Valor |
+|---|---|
+| Tipos de ordem | `127` — mercado, limit, stop, stop-limit, SL, TP, close-by |
+| Políticas de preenchimento | `3` — FOK (tudo ou nada), IOC (tudo ou parcial) |
+| Modos de validade | `15` — GTC, DAY, data específica, dia específico |
+
+Todos os tipos de ordem estão liberados, incluindo **SL e TP anexados**, que combinados com
+nível de stops zero permitem stops apertados sem restrição técnica. Ordem limitada está
+disponível — é a única forma de não pagar o spread, ao custo de seleção adversa, e está
+registrada como linha futura.
 
 O projeto mede **este instrumento e mais nenhum** até existir catálogo de sensores
 validados (ADR 0007). `XAUUSDz`, BTCUSD, outras contas e outras corretoras entram numa
@@ -73,7 +86,7 @@ sempre logar unidade junto do valor.
 
 | Campo | Valor | Unidade |
 |---|---|---|
-| Spread | true |  |
+| Spread | flutuante | — |
 | Nível de stops | 0 | points |
 | Nível de freeze | 0 | points |
 | Volume mínimo | 0.01 | lotes |
@@ -103,16 +116,23 @@ tanto em teste quanto em produção.
 |---|---|---|
 | Tick value | 15.74270000 | JPY por tick, 1 lote |
 | Lucro de 1 lote em movimento de $1/oz | 15743.00 | JPY |
-| Margem de 1 lote — compra | — | JPY |
-| Margem de 1 lote — venda | — | JPY |
+| Margem de 1 lote — compra | 31844.00 | JPY |
+| Margem de 1 lote — venda | 31830.00 | JPY |
 
 Os dois primeiros saem de caminhos independentes — `SYMBOL_TRADE_TICK_VALUE` e
-`OrderCalcProfit` — e batem: 1.000 ticks × 15.7427 = 15,742.7.
+`OrderCalcProfit` — e batem: 1.000 × 15.7427 = 15,742.7.
 Isso implica **USDJPY ≈ 157.43** e fecha a conta de sizing na moeda da conta.
 
 **Consequência da conta em JPY com lucro em USD:** R é adimensional e imune à
 conversão, mas equity, drawdown e agregação diária em ienes **não são**. Todo limite
 de risco se define em R; a curva em JPY é reportada à parte.
+
+**Alavancagem derivada: 1:1,999.** Valor de contrato de 100 oz a
+$4,043.81 convertido a USDJPY ≈ 157.43 dá ¥63,660,519, contra
+margem de ¥31,844. Não é premissa — sai da divisão de dois campos medidos.
+
+**Margem não é restrição, e o broker não oferece proteção alguma.** Todo controle de
+risco vive na EA. **Stop obrigatório em toda ordem, sem exceção.**
 
 ## 3. Calendário — sessões, fuso e feriados
 
@@ -142,19 +162,23 @@ nunca desloca.
 
 ### Sessões
 
-> **Não medido programaticamente nesta geração.** Os valores abaixo foram lidos do
-> diálogo de especificação do símbolo no terminal em 2026-08-02, e estão
-> implementados em `research/lib/sessions.py`. Rodar o `DataAudit.mq5` atualizado
-> substitui isto por leitura direta do servidor.
-
-Horários no **verão americano**; no inverno tudo desloca +1 hora:
+**Lidas do servidor** por `SymbolInfoSessionQuote` / `SymbolInfoSessionTrade`, não
+transcritas. Configuração vigente na leitura — verão americano; no inverno tudo
+desloca +1 hora.
 
 | Dia | Cotação | Negociação |
 |---|---|---|
-| Domingo | 22:01–24:00 | 22:01–24:00 |
-| Segunda a quinta | 00:00–20:58, 22:00–24:00 | 00:00–20:58, 22:00–24:00 |
-| Sexta | 00:00–20:58 | 00:00–20:58 |
-| Sábado | fechado | fechado |
+| domingo | 22:01–00:00 | 22:01–00:00 |
+| segunda | 00:00–20:58, 22:00–00:00 | 00:00–20:58, 22:00–00:00 |
+| terca | 00:00–20:58, 22:00–00:00 | 00:00–20:58, 22:00–00:00 |
+| quarta | 00:00–20:58, 22:00–00:00 | 00:00–20:58, 22:00–00:00 |
+| quinta | 00:00–20:58, 22:00–00:00 | 00:00–20:58, 22:00–00:00 |
+| sexta | 00:00–20:58 | 00:00–20:58 |
+| sabado | fechado | fechado |
+
+**Cotação e negociação abrem juntas** em todos os dias — não há janela em que o preço
+se move sem que se possa operar. A máscara em `research/lib/sessions.py` implementa
+exatamente este cronograma, com a regra de DST.
 
 ### Feriados de mercado
 
