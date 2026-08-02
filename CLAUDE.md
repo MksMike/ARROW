@@ -5,6 +5,11 @@
 > sessão, este documento prevalece — a menos que o usuário o altere explicitamente.
 >
 > Repositório: `C:\dev\ARROW` — público no GitHub.
+>
+> **Este documento contém regras; não contém números medidos.** Spec do broker, calendário,
+> integridade do histórico e volatilidade vivem em `docs/REFERENCIA-XAUUSD.md`, que é **gerado**
+> a partir do dado e é a fonte única do que foi medido. Ler os dois antes de discutir sensor,
+> indicador ou estratégia.
 
 ---
 
@@ -112,6 +117,7 @@ C:\dev\ARROW\
 ├── STATE.md
 ├── README.md
 ├── docs/
+│   ├── REFERENCIA-XAUUSD.md       # GERADO — fonte única de tudo que foi medido
 │   ├── decisions/                 # ADRs — NNNN-slug.md
 │   ├── sessions/                  # relatórios de sessão (imutáveis)
 │   ├── sensors/                   # ficha + veredicto (inclusive reprovados)
@@ -499,45 +505,22 @@ A Dukascopy negocia nos horários dela; a Exness tem intervalo diário e fecha s
 opera em janelas onde não haveria execução possível, e o resultado infla em silêncio — as bordas
 são justamente onde o preço se move sem que se possa reagir.
 
-Sessões do símbolo **no verão americano**: domingo 22:00–24:00 (negociação a partir de 22:05);
-segunda a quinta 00:00–20:58 e 22:00–24:00; sexta 00:00–20:58; sábado fechado.
+**As sessões do símbolo estão em `docs/REFERENCIA-XAUUSD.md`**, lidas do servidor, com a regra de
+deslocamento por DST. Implementadas em `research/lib/sessions.py`.
 
-**No inverno americano tudo desloca +1 hora.** Medido, não suposto (§10.7): a parada diária é
-`20:58→22:02` em julho e `21:58→23:01` em janeiro, sem exceção em 31 dias amostrados. O relógio
-do servidor é fixo; o que se move é o calendário do COMEX por baixo dele, e a sessão configurada
-do símbolo acompanha.
-
-Tratar `20:58` como constante do ano inteiro **descarta uma hora real de negociação por dia
-durante o inverno** — na prática 1,36 milhão de ticks nos quatro anos de `raw/`. Implementado com
-a regra de DST em `research/lib/sessions.py`.
+A regra normativa aqui é uma só: **ticks fora da sessão de negociação são removidos em
+`curated/`**, e a máscara nunca pode tratar as bordas como constantes do ano inteiro.
 
 ### 10.7 Fuso — CONFIRMADO
 
-**Servidor = UTC, relógio fixo.** Medido em 2026-08-02 por `MQL5/Scripts/ARROW/DataAudit.mq5`
-sobre o histórico M1 do broker; veredicto em `reports/broker-audit.md`.
+**Servidor = UTC, relógio fixo.** Medido em duas estações; evidência e método em
+`docs/REFERENCIA-XAUUSD.md`.
 
-| Estação | Parada diária (hora de servidor) | Dias |
-|---|---|---|
-| Julho (verão americano) | `20:58` → `22:02` | 16 de 16 |
-| Janeiro (inverno americano) | `21:58` → `23:01` | 15 de 15 |
+Duas consequências, e confundi-las custa caro:
 
-O teste não precisou de fonte externa: o símbolo se testa contra si mesmo. A manutenção do COMEX
-é 17:00–18:00 em Nova York, o que em UTC é 21:00–22:00 no verão e 22:00–23:00 no inverno, porque
-Nova York muda e UTC não. Logo, se o relógio do servidor observasse DST a parada ficaria na mesma
-hora nas duas estações; **ela desliza exatamente uma hora, sem uma única exceção em 31 dias.** O
-relógio não se mexe.
-
-Consequências, e a segunda é a que mais custa:
-
-1. **Alinhamento com a Dukascopy por constante**, não por data. As duas são UTC.
-2. **Mas a sessão configurada do símbolo desliza com o DST americano** (§10.6). Em janeiro há
-   barras M1 até 21:57; se a sessão terminasse às 20:58 o ano inteiro, não existiria barra
-   nenhuma entre 20:58 e 21:58. Toda máscara de sessão precisa da regra de DST.
-
-**Por que não `TimeCurrent()` vs `TimeGMT()`:** essas funções medem o offset no instante da
-chamada. Entregam uma estação só, e um servidor que desloca uma hora em março produz leitura
-idêntica a um que nunca desloca. O offset instantâneo foi medido em zero e é consistente com o
-resultado — mas sozinho ele não teria respondido nada.
+1. **O alinhamento com a Dukascopy é por constante**, não por data. As duas são UTC.
+2. **Mas a sessão configurada do símbolo desliza com o DST americano.** Tratar as bordas como
+   fixas descarta uma hora de negociação real por dia durante o inverno.
 
 Todo timestamp interno em UTC; conversão apenas na borda.
 
@@ -698,35 +681,16 @@ fonte), ticks do broker, qualquer identificador pessoal.
 
 ## 13. Restrições operacionais
 
+**A spec medida do símbolo vive em `docs/REFERENCIA-XAUUSD.md`** — dígitos, contract size,
+tick value, margem, swap, execução, volumes e nível de stops. Não é repetida aqui.
+
+Restrições que ainda não têm valor definido, e que bloqueiam conclusão de Gate 2:
+
 | Parâmetro | Valor |
 |---|---|
-| Broker / conta | Exness, Standard |
-| Símbolo | `XAUUSDm` |
-| Dígitos | 3 — 1 point = $0,001/oz |
-| Tamanho de contrato | 100 XAU |
-| Moeda de lucro / moeda da conta | USD / **JPY** |
-| Spread | Flutuante, piso 0,20 = **$20/lote round-trip** |
-| Comissão | Zero — o spread é o custo total |
-| Nível de Stops | 0 |
-| Volume | mín 0,01 / máx 200 / passo 0,01 |
-| Margem | ~¥31.844/lote — **1:2000** |
-| Swap compra / venda | **−482,5 pontos** ($48/lote/noite) / 0. Quarta ×3 |
 | Capital inicial | `<<PENDENTE>>` |
 | Drawdown máximo tolerado | `<<PENDENTE>>` |
 | Critério para passar de demo a real | `<<PENDENTE>>` |
-
-**Confirmada por medição** em 2026-08-02 (`reports/broker-audit.md`): dígitos, point, contract
-size, nível de stops, volumes, swap e rollover ×3 batem com o servidor. Duas adições medidas:
-
-- `SYMBOL_CHART_MODE = Bid` — o MT5 **de fato** plota bid, o que era premissa da §10.3
-- Tick value **¥15,7427** por tick de 1 lote, e ¥15.743 para um movimento de $1/oz. Os dois
-  saem de caminhos independentes (`SYMBOL_TRADE_TICK_VALUE` e `OrderCalcProfit`) e batem entre
-  si; implicam USDJPY ≈ 157,4
-- Histórico M1 do broker desde **2014-01-14**, 3.265.408 barras. A retenção curta é de **tick**,
-  não de barra — o que abre 12 anos de sobreposição para medir o gap de fonte da §11.2
-
-O spread não foi medido com o mercado aberto e continua sendo premissa. `XAUUSDz` **não será
-auditado** — o ADR 0007 restringe o projeto a `XAUUSDm` até existir catálogo validado.
 
 ### 13.1 O custo como exigência de edge
 
@@ -737,12 +701,11 @@ precisa subir `R+c` para ganhar e só cair `R−c` para perder.
 Sob caminho sem deriva: P(ganhar) = `(R−c)/2R` e esperança = **exatamente −c**, para qualquer
 escolha de alvo e stop. A métrica operacional é o **acréscimo de acerto necessário**, `c/(2R)`:
 
-| Alvo/stop líquido | Acerto sem edge | Edge exigido |
-|---|---|---|
-| $0,30 | 16,7% | **+33 pp** |
-| $1,00 | 40% | +10 pp |
-| $3,00 | 46,7% | **+3,3 pp** |
-| $5,00 | 48% | +2 pp |
+A tabela de edge exigido por tamanho de alvo está em `docs/REFERENCIA-XAUUSD.md`.
+
+**Armadilha da taxa de acerto:** alvo +$0,30 com stop −$3,00 produz ~85% de trades vencedores e
+esperança de −$0,20. Taxa alta de acerto não é edge — é a mesma matemática do martingale por
+outra porta.
 
 Alvos abaixo de ~$1,00 líquido exigem 10 pp ou mais e são hipótese extraordinária, não ponto de
 partida.
@@ -752,40 +715,17 @@ partida.
 A sessão não altera o custo. Altera **quanto tempo leva para R ficar grande o bastante**, já que
 R alcançável ≈ σ√T.
 
-**Medido**, não estimado: `research/audit_sigma.py` sobre 1.380.142 barras M1 dos quatro anos de
-`raw/`, com máscara de sessão e feriados aplicados. Relatório em `reports/sigma-auditoria.md`.
-σ é o desvio-padrão da variação de preço em uma barra M1, em USD/oz, sobre o bid.
+**Os valores medidos de σ, por sessão, por hora e por ano, e a tabela de tempo para alcançar R
+estão em `docs/REFERENCIA-XAUUSD.md`.** Eles expiram: σ escala com o nível de preço e o regime de
+volatilidade também se move. O gatilho de remedição está declarado lá.
 
-**Valores de 2026** (ouro ~$4.597) — `T = (R/σ)²`:
+Duas conclusões normativas que saíram da medição:
 
-| Sessão (UTC) | σ medida | R=$1 (exige 10 pp) | R=$3 (exige 3,3 pp) | R=$5 (exige 2 pp) |
-|---|---|---|---|---|
-| Asiático 00–07 | **2,50** | 0,2 min | 1,4 min | 4,0 min |
-| Londres 07–12 | **2,25** | 0,2 min | 1,8 min | 5,0 min |
-| Sobreposição LDN/NY 12–16 | **3,32** | 0,1 min | 0,8 min | 2,3 min |
-| Nova York 16–21 | **2,42** | 0,2 min | 1,5 min | 4,3 min |
-
-**A afirmação de que a asiática é ~3× mais exigente está morta.** Ela exigia σ da asiática ~3×
-menor que a da sobreposição. A razão medida subiu de forma monótona ao longo da janela — 0,42 em
-2022, 0,43, 0,52, 0,71, **0,75 em 2026** — e o perfil intradiário achatou. Em 2026 a hora **1
-UTC** (09:00 em Pequim, abertura da Shanghai Gold Exchange) é a segunda hora mais volátil do dia
-inteiro. Em 2023 o mesmo código dá o perfil clássico, com pico na sobreposição: a mudança está no
-mercado, não na medição.
-
-**σ em dólares triplicou em dois anos**, de 0,586 em 2024 para 2,594 em 2026 — mas em pontos-base
-do preço subiu bem menos, de 2,46 para 5,64 bps. Boa parte do salto é nível de preço, não regime.
-Toda tabela em dólares tem prazo de validade e **deve ser remedida quando o ouro mudar de
-patamar**; a série por ano está em `reports/sigma-ano-x-sessao.csv`.
-
-**Ressalva contra otimismo.** `σ√T` supõe passeio aleatório sem deriva nem reversão, e a σ acima é
-de fechamento a fechamento no M1 — portanto **contaminada por bid-ask bounce**, que infla σ sem
-representar movimento aproveitável. Os tempos da tabela são, por construção, o **melhor caso**. O
-alcance real em T minutos é menor, e quanto menor é pergunta em aberto até `bars/` existir e
-permitir medir o range efetivo.
-
-Nenhuma sessão é proibida. Com σ ≈ 2,5 em qualquer sessão, alvos de $3 a $5 líquidos — que exigem
-apenas 3,3 pp e 2 pp de acerto direcional (§13.1) — são alcançáveis em 1 a 5 minutos. Isso é
-materialmente mais favorável do que as estimativas antigas sugeriam.
+- **A premissa de que a sessão asiática é ~3× mais exigente em edge está refutada.** O perfil
+  intradiário achatou de forma monótona ao longo de quatro anos. Filtrar sessão para evitá-la não
+  tem base empírica; se `REGIME` ou `COST` discriminarem horário, o critério sai de medição
+  corrente e é remedido.
+- **Nenhuma sessão é proibida.**
 
 Ordem limitada na entrada é a única forma de não pagar o spread — ao custo de seleção adversa.
 Linha futura, fora do escopo atual.

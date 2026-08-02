@@ -14,9 +14,9 @@ alcançar `R` é `T = (R/σ)²`. Portanto a medição é diretamente comparável
 |---|---|
 | Lidos de `raw/` | 240,344,662 |
 | Removidos por feriado (ADR 0006) | 32,239 |
-| Removidos por estar fora da sessão (§10.6) | 386,246 |
+| Removidos por estar fora da sessão (§10.6) | 180,408 |
 
-Barras M1 resultantes: **1,400,905**. Variações entre minutos adjacentes: **1,399,354**. Pares descartados por não serem consecutivos: 1,550 — são as bordas da parada diária e dos fins de semana, onde a diferença de preço não é uma variação de um minuto.
+Barras M1 resultantes: **1,402,473**. Variações entre minutos adjacentes: **1,400,908**. Pares descartados por não serem consecutivos: 1,564 — são as bordas da parada diária e dos fins de semana, onde a diferença de preço não é uma variação de um minuto.
 
 ---
 
@@ -48,11 +48,11 @@ Barras M1 resultantes: **1,400,905**. Variações entre minutos adjacentes: **1,
 
 | Ano | Barras | Preço mediano | σ (USD) | σ (bps) |
 |---|---|---|---|---|
-| 2022 | 145,511 | $1,737 | 0.433 | 2.49 |
-| 2023 | 348,233 | $1,945 | 0.420 | 2.16 |
-| 2024 | 348,343 | $2,379 | 0.583 | 2.45 |
-| 2025 | 352,064 | $3,345 | 1.133 | 3.39 |
-| 2026 | 205,203 | $4,601 | 2.590 | 5.63 |
+| 2022 | 145,671 | $1,737 | 0.433 | 2.49 |
+| 2023 | 348,626 | $1,945 | 0.421 | 2.16 |
+| 2024 | 348,728 | $2,379 | 0.583 | 2.45 |
+| 2025 | 352,452 | $3,345 | 1.136 | 3.39 |
+| 2026 | 205,431 | $4,601 | 2.595 | 5.64 |
 
 ---
 
