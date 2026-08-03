@@ -1,7 +1,12 @@
 # 0013 — Hipótese: informatividade por cotação
 
 **Data:** 2026-08-03
-**Status:** pré-registrada — nenhuma medição feita
+**Status:** **REFUTADA** em 2026-08-03 — ver `research/findings/2026-08-03-info-por-cotacao-refutada.md`
+
+> **Veredito.** O falsificador 2 disparou: o IC parcial condicionado a `rv` não desaparece, **inverte**
+> (−0,032 em T=5, afastado de zero). E `rv` sozinho bate `info` em todos os horizontes. A sonda que
+> motivou a hipótese era artefato de período misturado — recalculada com a definição deste próprio
+> ADR, ela inverte de sinal.
 **Função candidata:** `VOLATILITY` (possivelmente `REGIME`)
 
 > Pré-registro (§6). Este ADR é commitado **antes** do código que o mede. Medição cujo commit não

@@ -19,7 +19,7 @@
 | [0010](0010-laboratorio-e-papeis.md) | O laboratório: ADR restringe forma, não fecha pergunta | aceito | usuário, 2026-08-03 |
 | [0011](0011-excecoes-com-escopo.md) | Exceção com escopo: um ADR pode não valer para um componente | aceito | usuário, 2026-08-03 |
 | [0012](0012-poda.md) | Poda: o processo passou do ponto | aceito | usuário, 2026-08-03 |
-| [0013](0013-hipotese-informatividade-por-cotacao.md) | **Hipótese:** informatividade por cotação (`rv²/n_ticks`) | pré-registrada | Code, 2026-08-03 |
+| [0013](0013-hipotese-informatividade-por-cotacao.md) | **Hipótese:** informatividade por cotação (`rv²/n_ticks`) | **REFUTADA** | Code, 2026-08-03 |
 
 ## Pendentes de ADR
 

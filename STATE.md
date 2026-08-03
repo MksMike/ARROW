@@ -58,8 +58,14 @@ Contagem acumulada — insumo da correção para testes múltiplos (§7), não e
 |---|---|---|---|
 | 1 | `rv` do ADR 0005 estaria dominado por ruído de cotação | **refutada** | `research/findings/2026-08-03-dependencia-escala-tick.md` |
 | 2 | A dependência de tick estaria confinada ao lag 1 | **refutada** | idem |
+| 3 | `rv²/n_ticks` preveria volatilidade futura (ADR 0013) | **refutada** | `research/findings/2026-08-03-info-por-cotacao-refutada.md` |
 
-**2 testadas · 2 refutadas · 0 sobreviventes · 0 sensores validados**
+**3 testadas · 3 refutadas · 0 sobreviventes · 0 sensores validados**
+
+Réguas medidas, para as próximas: `IC(rv, variância futura) = 0,86` em T=15 — todo sensor de
+`VOLATILITY` tem de bater isso. E 66% da variância de posto de `info` era explicada só por
+(ano, hora): **IC agrupado é majoritariamente relógio**, e o condicionamento por (dia,hora) é
+obrigatório.
 
 ---
 
@@ -71,6 +77,7 @@ Contagem acumulada — insumo da correção para testes múltiplos (§7), não e
 | Semântica de `confidence` | Não decidida |
 | Critério de escolha de T no Gate 1 | Não decidido |
 | Definição de `tick_imb` | 20,9% dos ticks copiam o sinal anterior — injeção mecânica de autocorrelação numa primitiva que `bars/` vai congelar |
+| **Definição de `n_ticks`** | **Conta atualizações de ask**: dos ticks que não mexem o bid, 99,74–100% mexem o ask, e 8,3–31,1% da massa de `n_ticks` é ask da Dukascopy — que o ADR 0005 manda descartar. Afeta `tick_imb`, `dur_mean`, `dur_std` e todo sensor que conte tick |
 | Capital, drawdown, critério demo→real | Não decididos |
 | Correção para testes múltiplos por **projeto**, não só por sensor | Dívida do ADR 0010 |
 | Gatilho de revisão do ADR 0002 é 2 exceções — não está no texto dele | Dívida do ADR 0011 |
@@ -79,12 +86,12 @@ Contagem acumulada — insumo da correção para testes múltiplos (§7), não e
 
 ## Próximo passo
 
-**Primeiro sensor.** Candidato: `VOLATILITY` — informatividade por cotação, `rv²/n_ticks`.
-Quanto o preço se move por cotação emitida; medido 0,059 na asiática contra 0,040 na sobreposição.
-Sai de duas primitivas que `bars/` já especifica, tem mecanismo articulável, é normalizável contra
-o nulo, e o caminho até o Gate 1 não depende de `broker/`.
+**Corrigir `bars.py` antes de qualquer medição.** Onze defeitos encontrados; `data/bars/` foi
+apagada porque estava corrompida (`dur_mean`/`dur_std` erradas por 10⁶, barra-fantasma duplicada
+por fronteira de mês). `research/audit_ic.py` não executa — `ra -= ra.mean()` sobre array read-only
+do pandas 3.0. Lista completa em `research/findings/2026-08-03-info-por-cotacao-refutada.md`.
 
-Ordem: ADR de hipótese com falsificador → commit → `bars.py` com as sete colunas → IC → veredito.
+**Depois:** próximo sensor. Ordem: ADR de hipótese com falsificador → commit → medição → verificação por subagentes → veredito.
 
 ---
 
